@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vytal - Your Health Journey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        vytal: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        coral: {
+                            400: '#fb7185',
+                            500: '#f43f5e',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['DM Sans', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(180deg, #f8fafc 0%, #f0fdf4 100%);
+            min-height: 100vh;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+        }
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+            transform: translateY(-1px);
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f1f5f9;
+        }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+            border-radius: 16px 16px 4px 16px;
+        }
+        .chat-bubble-bot {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px 16px 16px 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // Mock user data
+        const mockUser = {
+            name: 'Ankur',
+            healthScore: 78,
+            biologicalAge: 38,
+            chronologicalAge: 42,
+            biomarkers: {
+                ldl: { value: 145, unit: 'mg/dL', status: 'high', optimal: '<100' },
+                hdl: { value: 42, unit: 'mg/dL', status: 'borderline_low', optimal: '>40' },
+                triglycerides: { value: 180, unit: 'mg/dL', status: 'borderline_high', optimal: '<150' },
+                hsCRP: { value: 3.2, unit: 'mg/L', status: 'high', optimal: '<1' },
+                apoB: { value: 128, unit: 'mg/dL', status: 'high', optimal: '<90' },
+                glucose: { value: 108, unit: 'mg/dL', status: 'borderline_high', optimal: '<100' },
+                hba1c: { value: 5.9, unit: '%', status: 'borderline_high', optimal: '<5.7' },
+            },
+            signals: {
+                attention: [{
+                    id: 'cardio',
+                    title: 'Cardiovascular Inflammation',
+                    insight: 'Your LDL (145) combined with elevated hs-CRP (3.2) indicates your arteries are under stress.',
+                    action: "This is the #1 lever for your health right now."
+                }],
+                watch: [{
+                    id: 'metabolic',
+                    title: 'Pre-Diabetic Pattern',
+                    insight: 'Your glucose (108) and HbA1c (5.9%) are in the warning zone.',
+                    action: 'Early intervention = full reversal'
+                }],
+                strengths: ['Liver Function', 'Kidney Health', 'Thyroid Balance', 'Blood Health']
+            }
+        };
+        
+        const actions = [
+            { id: 'fiber', name: 'Add 10g Fiber Daily', icon: '🥗', category: 'nutrition', streak: 5, completed: false },
+            { id: 'walk', name: '10-Min Post-Meal Walk', icon: '🚶', category: 'movement', streak: 3, completed: false },
+            { id: 'fish_oil', name: 'Fish Oil Supplement', icon: '💊', category: 'supplement', streak: 7, completed: true },
+            { id: 'sleep', name: 'Sleep by 10:30 PM', icon: '😴', category: 'lifestyle', streak: 2, completed: false },
+        ];
+        
+        // Health Score Ring
+        function HealthScoreRing({ score, size = 160 }) {
+            const strokeWidth = 10;
+            const radius = (size - strokeWidth) / 2;
+            const circumference = radius * 2 * Math.PI;
+            const offset = circumference - (score / 100) * circumference;
+            
+            return (
+                <div className="relative" style={{ width: size, height: size }}>
+                    <svg className="progress-ring" width={size} height={size}>
+                        <circle
+                            className="text-slate-100"
+                            strokeWidth={strokeWidth}
+                            stroke="currentColor"
+                            fill="transparent"
+                            r={radius}
+                            cx={size / 2}
+                            cy={size / 2}
+                        />
+                        <circle
+                            strokeWidth={strokeWidth}
+                            strokeLinecap="round"
+                            stroke="#22c55e"
+                            fill="transparent"
+                            r={radius}
+                            cx={size / 2}
+                            cy={size / 2}
+                            style={{
+                                strokeDasharray: circumference,
+                                strokeDashoffset: offset,
+                                transition: 'stroke-dashoffset 1s ease-out'
+                            }}
+                        />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-4xl font-display font-bold text-slate-800">{score}</span>
+                        <span className="text-sm text-slate-500">Good</span>
+                    </div>
+                </div>
+            );
+        }
+        
+        // Navigation
+        function NavBar({ currentTab, setCurrentTab }) {
+            const tabs = [
+                { id: 'home', label: 'Home', icon: '🏠' },
+                { id: 'actions', label: 'Actions', icon: '✅' },
+                { id: 'progress', label: 'Progress', icon: '📊' },
+                { id: 'insights', label: 'Insights', icon: '🔬' },
+                { id: 'chat', label: 'Chat', icon: '💬' },
+            ];
+            
+            return (
+                <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 md:top-0 md:bottom-auto">
+                    <div className="max-w-4xl mx-auto px-4">
+                        <div className="flex justify-around py-2">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setCurrentTab(tab.id)}
+                                    className={`flex flex-col items-center py-2 px-4 rounded-xl transition-all ${
+                                        currentTab === tab.id 
+                                            ? 'text-vytal-600 bg-vytal-50' 
+                                            : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    <span className="text-xl mb-1">{tab.icon}</span>
+                                    <span className="text-xs font-medium">{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </nav>
+            );
+        }
+        
+        // Home Page
+        function HomePage({ user, userActions, setUserActions }) {
+            const completedCount = userActions.filter(a => a.completed).length;
+            const totalCount = userActions.length;
+            
+            const toggleAction = (id) => {
+                setUserActions(prev => prev.map(a => 
+                    a.id === id ? { ...a, completed: !a.completed } : a
+                ));
+            };
+            
+            return (
+                <div className="max-w-2xl mx-auto px-4 py-6 animate-in">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-2xl font-display font-bold text-slate-800 mb-1">
+                            Good morning, {user.name} 👋
+                        </h1>
+                        <p className="text-slate-500">Day 7 of your health journey</p>
+                    </div>
+                    
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-3 gap-4 mb-8">
+                        <div className="card p-4 text-center">
+                            <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-gradient-to-br from-vytal-500 to-emerald-500 flex items-center justify-center shadow-lg">
+                                <span className="text-xl font-bold text-white">{user.healthScore}</span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-800">Health Score</p>
+                        </div>
+                        
+                        <div className="card p-4 text-center">
+                            <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-lg">
+                                <span className="text-xl">🔥</span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-800">5 Day Streak</p>
+                        </div>
+                        
+                        <div className="card p-4 text-center">
+                            <div className="w-14 h-14 mx-auto mb-2 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg">
+                                <span className="text-xl font-bold text-white">{user.biologicalAge}</span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-800">Bio Age</p>
+                        </div>
+                    </div>
+                    
+                    {/* Today's Actions */}
+                    <div className="card p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-800">Today's Actions</h2>
+                                <p className="text-sm text-slate-500">{completedCount} of {totalCount} complete</p>
+                            </div>
+                            <div className="text-2xl font-bold text-vytal-600">
+                                {Math.round((completedCount / totalCount) * 100)}%
+                            </div>
+                        </div>
+                        
+                        {/* Progress bar */}
+                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-6">
+                            <div 
+                                className="h-full bg-gradient-to-r from-vytal-500 to-emerald-500 rounded-full transition-all duration-500"
+                                style={{ width: `${(completedCount / totalCount) * 100}%` }}
+                            />
+                        </div>
+                        
+                        {/* Action list */}
+                        <div className="space-y-3">
+                            {userActions.map(action => (
+                                <div
+                                    key={action.id}
+                                    onClick={() => toggleAction(action.id)}
+                                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                        action.completed
+                                            ? 'bg-vytal-50 border-vytal-200'
+                                            : 'bg-white border-slate-100 hover:border-vytal-200'
+                                    }`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                        action.completed ? 'bg-vytal-500 text-white' : 'bg-slate-100'
+                                    }`}>
+                                        {action.completed ? '✓' : ''}
+                                    </div>
+                                    <span className="text-2xl">{action.icon}</span>
+                                    <div className="flex-1">
+                                        <p className={`font-medium ${action.completed ? 'text-vytal-700' : 'text-slate-800'}`}>
+                                            {action.name}
+                                        </p>
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <span className="text-slate-400 capitalize">{action.category}</span>
+                                            {action.streak > 0 && (
+                                                <span className="text-orange-500">🔥 {action.streak} days</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Motivational quote */}
+                    <p className="text-center text-slate-400 text-sm italic">
+                        "Every small action compounds into big results."
+                    </p>
+                </div>
+            );
+        }
+        
+        // Actions Page
+        function ActionsPage({ userActions, setUserActions }) {
+            const [expanded, setExpanded] = useState(null);
+            
+            const actionDetails = {
+                fiber: {
+                    why: "Soluble fiber binds to cholesterol in your gut, preventing absorption. It's one of the most effective natural ways to lower LDL.",
+                    howTo: ["Add oatmeal to breakfast", "Include beans in one meal", "Snack on an apple with skin"],
+                    targets: ['LDL ↓', 'Glucose ↓']
+                },
+                walk: {
+                    why: "Post-meal walking blunts glucose spikes by 30-50%. Muscles absorb glucose directly, reducing insulin demand.",
+                    howTo: ["Walk 10-15 min after your largest meal", "Even slow walking works", "Set a calendar reminder"],
+                    targets: ['Glucose ↓', 'Triglycerides ↓']
+                },
+                fish_oil: {
+                    why: "EPA and DHA in fish oil are potent anti-inflammatory compounds that directly lower triglycerides and hs-CRP.",
+                    howTo: ["Take 2-3g EPA/DHA daily", "Take with food", "Store in fridge"],
+                    targets: ['Triglycerides ↓', 'hs-CRP ↓']
+                },
+                sleep: {
+                    why: "Sleep is when your body repairs, hormones rebalance, and inflammation clears. Poor sleep drives up hs-CRP.",
+                    howTo: ["Set consistent bedtime", "No screens 1hr before bed", "Keep room dark and cool"],
+                    targets: ['hs-CRP ↓', 'Recovery ↑']
+                }
+            };
+            
+            const toggleAction = (id) => {
+                setUserActions(prev => prev.map(a => 
+                    a.id === id ? { ...a, completed: !a.completed } : a
+                ));
+            };
+            
+            return (
+                <div className="max-w-2xl mx-auto px-4 py-6 animate-in">
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-display font-bold text-slate-800 mb-1">Your Actions</h1>
+                        <p className="text-slate-500">Track and understand each habit</p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        {userActions.map(action => {
+                            const details = actionDetails[action.id];
+                            const isExpanded = expanded === action.id;
+                            
+                            return (
+                                <div key={action.id} className="card overflow-hidden">
+                                    <div 
+                                        className="p-5 cursor-pointer"
+                                        onClick={() => toggleAction(action.id)}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                                                action.completed ? 'bg-vytal-500 text-white' : 'bg-slate-100'
+                                            }`}>
+                                                {action.completed ? '✓' : ''}
+                                            </div>
+                                            <span className="text-2xl">{action.icon}</span>
+                                            <div className="flex-1">
+                                                <p className={`font-semibold ${action.completed ? 'text-vytal-700' : 'text-slate-800'}`}>
+                                                    {action.name}
+                                                </p>
+                                                <div className="flex items-center gap-3 text-sm">
+                                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-xs capitalize">
+                                                        {action.category}
+                                                    </span>
+                                                    {action.streak > 0 && (
+                                                        <span className="text-orange-500 font-medium">🔥 {action.streak} days</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setExpanded(isExpanded ? null : action.id); }}
+                                                className="p-2 hover:bg-slate-100 rounded-lg"
+                                            >
+                                                {isExpanded ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {isExpanded && details && (
+                                        <div className="px-5 pb-5 border-t border-slate-100 pt-4">
+                                            <div className="mb-4">
+                                                <h4 className="text-sm font-semibold text-slate-800 mb-2">💡 Why This Matters</h4>
+                                                <p className="text-sm text-slate-600">{details.why}</p>
+                                            </div>
+                                            
+                                            <div className="mb-4">
+                                                <h4 className="text-sm font-semibold text-slate-800 mb-2">🎯 What It Impacts</h4>
+                                                <div className="flex gap-2">
+                                                    {details.targets.map((t, i) => (
+                                                        <span key={i} className="px-2 py-1 bg-vytal-100 text-vytal-700 rounded-md text-xs font-medium">
+                                                            {t}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-slate-800 mb-2">📝 How To Do It</h4>
+                                                <ul className="space-y-1">
+                                                    {details.howTo.map((step, i) => (
+                                                        <li key={i} className="text-sm text-slate-600">• {step}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+        
+        // Progress Page
+        function ProgressPage({ user }) {
+            const biomarkerProjections = [
+                { name: 'LDL Cholesterol', baseline: 145, current: 125, target: 100, unit: 'mg/dL' },
+                { name: 'hs-CRP', baseline: 3.2, current: 2.4, target: 1.0, unit: 'mg/L' },
+                { name: 'Triglycerides', baseline: 180, current: 150, target: 100, unit: 'mg/dL' },
+                { name: 'Fasting Glucose', baseline: 108, current: 102, target: 95, unit: 'mg/dL' },
+            ];
+            
+            return (
+                <div className="max-w-2xl mx-auto px-4 py-6 animate-in">
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-display font-bold text-slate-800 mb-1">Your Progress</h1>
+                        <p className="text-slate-500">Track your journey to better health</p>
+                    </div>
+                    
+                    {/* Goal Progress */}
+                    <div className="card p-6 mb-6 bg-gradient-to-br from-vytal-50 to-emerald-50">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="font-semibold text-slate-800">Goal: Lower Cardiovascular Risk</h2>
+                                <p className="text-sm text-slate-600">90-day journey</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm text-slate-500">Day 7 of 90</p>
+                                <p className="text-2xl font-bold text-vytal-600">8%</p>
+                            </div>
+                        </div>
+                        <div className="w-full h-3 bg-white rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-vytal-500 to-emerald-500 rounded-full" style={{ width: '8%' }} />
+                        </div>
+                    </div>
+                    
+                    {/* Stats */}
+                    <div className="grid grid-cols-4 gap-3 mb-6">
+                        {[
+                            { label: 'Actions Done', value: '23', icon: '🎯' },
+                            { label: 'Current Streak', value: '5', icon: '🔥' },
+                            { label: 'Days Active', value: '7', icon: '📅' },
+                            { label: 'Consistency', value: '75%', icon: '⭐' },
+                        ].map(stat => (
+                            <div key={stat.label} className="card p-3 text-center">
+                                <span className="text-xl mb-1 block">{stat.icon}</span>
+                                <p className="text-lg font-bold text-slate-800">{stat.value}</p>
+                                <p className="text-xs text-slate-500">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Biomarker Projections */}
+                    <h2 className="font-semibold text-slate-800 mb-4">Biomarker Projections</h2>
+                    <div className="space-y-4">
+                        {biomarkerProjections.map(bio => {
+                            const progress = Math.round(((bio.baseline - bio.current) / (bio.baseline - bio.target)) * 100);
+                            return (
+                                <div key={bio.name} className="card p-5">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="font-medium text-slate-800">{bio.name}</h3>
+                                        <span className="text-xs px-2 py-0.5 bg-vytal-100 text-vytal-700 rounded-full">Improving ↓</span>
+                                    </div>
+                                    <div className="flex items-end gap-4 mb-3 text-sm">
+                                        <div>
+                                            <p className="text-slate-400">Started</p>
+                                            <p className="font-semibold text-slate-500">{bio.baseline}</p>
+                                        </div>
+                                        <span className="text-vytal-500">→</span>
+                                        <div>
+                                            <p className="text-slate-400">Current (est.)</p>
+                                            <p className="text-xl font-bold text-vytal-600">{bio.current}</p>
+                                        </div>
+                                        <span className="text-slate-300">→</span>
+                                        <div>
+                                            <p className="text-slate-400">Target</p>
+                                            <p className="font-semibold text-slate-600">{bio.target}</p>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-vytal-500 to-emerald-500 rounded-full"
+                                            style={{ width: `${Math.min(progress, 100)}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-2">{progress}% of the way to your target</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+        
+        // Insights Page - Based on actual user biomarker data
+        function InsightsPage({ user }) {
+            // Correlations observed in user's data
+            const dataCorrelations = [
+                {
+                    title: 'LDL ↔ ApoB Correlation',
+                    risk: 'high',
+                    detail: 'Both your LDL (145) and ApoB (128) are elevated together, indicating high atherogenic particle count.',
+                    action: 'ApoB >120 mg/dL confirms cardiovascular risk beyond LDL alone',
+                    yourData: `LDL: ${user.biomarkers.ldl.value} mg/dL | ApoB: ${user.biomarkers.apoB.value} mg/dL`
+                },
+                {
+                    title: 'TG/HDL Ratio (Insulin Resistance)',
+                    risk: user.biomarkers.triglycerides.value / user.biomarkers.hdl.value > 3 ? 'high' : 'moderate',
+                    detail: 'High triglycerides with low HDL indicates atherogenic dyslipidemia and insulin resistance.',
+                    action: 'Optimal TG/HDL ratio is <3.0; yours indicates metabolic dysfunction',
+                    yourData: `TG/HDL Ratio: ${(user.biomarkers.triglycerides.value / user.biomarkers.hdl.value).toFixed(1)} (TG: ${user.biomarkers.triglycerides.value} ÷ HDL: ${user.biomarkers.hdl.value})`
+                },
+                {
+                    title: 'LDL + hsCRP (Arterial Stress)',
+                    risk: user.biomarkers.hsCRP.value > 3 ? 'high' : 'moderate',
+                    detail: 'Elevated LDL combined with high inflammation (hsCRP >3.0) indicates oxidized LDL and active atherogenesis.',
+                    action: 'This combination is your #1 cardiovascular risk signal',
+                    yourData: `LDL: ${user.biomarkers.ldl.value} mg/dL | hsCRP: ${user.biomarkers.hsCRP.value} mg/L (High risk: >3.0)`
+                },
+                {
+                    title: 'Glucose ↔ HbA1c Consistency',
+                    risk: user.biomarkers.hba1c.value > 5.7 ? 'high' : 'low',
+                    detail: 'Both fasting glucose and HbA1c in pre-diabetic range confirms sustained hyperglycemia over 90 days.',
+                    action: 'Pre-diabetic range is reversible with lifestyle intervention',
+                    yourData: `Glucose: ${user.biomarkers.glucose.value} mg/dL | HbA1c: ${user.biomarkers.hba1c.value}% (Pre-diabetic: 5.7-6.4%)`
+                }
+            ];
+            
+            // Derived metrics from actual data
+            const derivedMetrics = [
+                { label: 'TG/HDL Ratio', value: (user.biomarkers.triglycerides.value / user.biomarkers.hdl.value).toFixed(1), optimal: '<3.0', status: user.biomarkers.triglycerides.value / user.biomarkers.hdl.value > 3 ? 'elevated' : 'normal', color: 'text-red-500' },
+                { label: 'Risk Markers', value: '5/7', optimal: '0/7', status: 'elevated', color: 'text-orange-500' },
+                { label: 'Bio Age Gap', value: '-4 yrs', optimal: 'Negative', status: 'good', color: 'text-vytal-500' },
+                { label: 'Inflammation', value: 'High', optimal: 'Low', status: 'elevated', color: 'text-red-500' }
+            ];
+            
+            const yourBiomarkers = [
+                { name: 'LDL Cholesterol', value: user.biomarkers.ldl.value, optimal: '<100', unit: 'mg/dL', status: user.biomarkers.ldl.value > 100 ? 'elevated' : 'optimal', deviation: '+45%' },
+                { name: 'HDL (Protective)', value: user.biomarkers.hdl.value, optimal: '>60', unit: 'mg/dL', status: user.biomarkers.hdl.value < 50 ? 'low' : 'optimal', deviation: '-30%' },
+                { name: 'Triglycerides', value: user.biomarkers.triglycerides.value, optimal: '<150', unit: 'mg/dL', status: user.biomarkers.triglycerides.value > 150 ? 'elevated' : 'optimal', deviation: '+20%' },
+                { name: 'hs-CRP', value: user.biomarkers.hsCRP.value, optimal: '<1.0', unit: 'mg/L', status: user.biomarkers.hsCRP.value > 3 ? 'high' : user.biomarkers.hsCRP.value > 1 ? 'elevated' : 'optimal', deviation: '+220%' },
+                { name: 'ApoB', value: user.biomarkers.apoB.value, optimal: '<90', unit: 'mg/dL', status: user.biomarkers.apoB.value > 120 ? 'elevated' : 'optimal', deviation: '+42%' },
+                { name: 'HbA1c', value: user.biomarkers.hba1c.value, optimal: '<5.7', unit: '%', status: user.biomarkers.hba1c.value > 5.7 ? 'elevated' : 'optimal', deviation: '+3.5%' },
+                { name: 'Fasting Glucose', value: user.biomarkers.glucose.value, optimal: '<100', unit: 'mg/dL', status: user.biomarkers.glucose.value > 100 ? 'elevated' : 'optimal', deviation: '+8%' }
+            ];
+            
+            return (
+                <div className="max-w-2xl mx-auto px-4 py-6 animate-in">
+                    <div className="mb-6">
+                        <h1 className="text-2xl font-display font-bold text-slate-800 mb-1">Data Insights</h1>
+                        <p className="text-slate-500">Analysis based on your actual biomarker data</p>
+                    </div>
+                    
+                    {/* Derived Metrics from YOUR data */}
+                    <div className="grid grid-cols-4 gap-3 mb-6">
+                        {derivedMetrics.map(metric => (
+                            <div key={metric.label} className="card p-3 text-center">
+                                <p className={`text-lg font-bold ${metric.color}`}>{metric.value}</p>
+                                <p className="text-xs text-slate-600">{metric.label}</p>
+                                <p className="text-xs text-slate-400">Optimal: {metric.optimal}</p>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Your Biomarkers with deviation */}
+                    <div className="card p-5 mb-6">
+                        <h2 className="font-semibold text-slate-800 mb-4">📊 Your Biomarker Status</h2>
+                        <div className="grid grid-cols-2 gap-3">
+                            {yourBiomarkers.map(factor => (
+                                <div key={factor.name} className={`p-3 rounded-xl ${factor.status === 'optimal' ? 'bg-vytal-50 border border-vytal-200' : factor.status === 'high' ? 'bg-red-100 border border-red-300' : 'bg-orange-50 border border-orange-200'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-slate-600">{factor.name}</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${factor.status === 'optimal' ? 'bg-vytal-100 text-vytal-700' : factor.status === 'high' ? 'bg-red-200 text-red-800' : 'bg-orange-100 text-orange-700'}`}>
+                                            {factor.status === 'optimal' ? '✓' : factor.deviation}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 mt-1">
+                                        <span className={`text-xl font-bold ${factor.status === 'optimal' ? 'text-vytal-600' : factor.status === 'high' ? 'text-red-600' : 'text-orange-600'}`}>{factor.value}</span>
+                                        <span className="text-xs text-slate-400">{factor.unit}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-1">Optimal: {factor.optimal}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Data Correlations */}
+                    <h2 className="font-semibold text-slate-800 mb-4">🔗 Correlations in Your Data</h2>
+                    <div className="space-y-4 mb-6">
+                        {dataCorrelations.map((correlation, i) => (
+                            <div key={i} className={`card p-5 border-l-4 ${correlation.risk === 'high' ? 'border-l-red-500' : correlation.risk === 'moderate' ? 'border-l-yellow-500' : 'border-l-vytal-500'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-semibold text-slate-800">{correlation.title}</h3>
+                                    <span className={`text-xs px-2 py-1 rounded-full ${correlation.risk === 'high' ? 'bg-red-100 text-red-700' : correlation.risk === 'moderate' ? 'bg-yellow-100 text-yellow-700' : 'bg-vytal-100 text-vytal-700'}`}>
+                                        {correlation.risk} correlation
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-600 mb-3">{correlation.detail}</p>
+                                <div className="bg-slate-50 rounded-lg p-3 mb-2">
+                                    <p className="text-xs font-medium text-slate-700 mb-1">📍 Your Values:</p>
+                                    <p className="text-sm text-slate-600 font-mono">{correlation.yourData}</p>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-vytal-600">→</span>
+                                    <span className="text-slate-600">{correlation.action}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Link to Full Analytics */}
+                    <a href="analytics.html" className="card p-5 flex items-center justify-between hover:shadow-lg transition-shadow block">
+                        <div>
+                            <h3 className="font-semibold text-slate-800">📈 Full Data Analytics Dashboard</h3>
+                            <p className="text-sm text-slate-500">Trends, forecasts, correlations & medical insights</p>
+                        </div>
+                        <span className="text-2xl">→</span>
+                    </a>
+                </div>
+            );
+        }
+        
+        // Chat Page
+        function ChatPage({ user }) {
+            const [messages, setMessages] = useState([
+                { role: 'bot', content: `Hi ${user.name}! 👋 I'm your Vytal health assistant.\n\nI'm here to help you understand your health results and make progress on your goals.\n\nWhat would you like to explore today?` }
+            ]);
+            const [input, setInput] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+            const messagesEndRef = useRef(null);
+            
+            const quickTopics = [
+                'Explain my LDL result',
+                'Why is inflammation bad?',
+                'What foods should I eat?',
+                'Am I on track?'
+            ];
+            
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+            
+            const getResponse = (msg) => {
+                const m = msg.toLowerCase();
+                
+                if (m.includes('ldl') || m.includes('cholesterol')) {
+                    return `Great question about LDL!\n\n**Your LDL: ${user.biomarkers.ldl.value} ${user.biomarkers.ldl.unit}**\n• Optimal: ${user.biomarkers.ldl.optimal}\n• Status: Elevated ⚠️\n\n**What LDL is:**\nLDL carries cholesterol to your artery walls. Too much = plaque buildup.\n\n**Your action plan addresses this:**\n• **Fiber** → Binds cholesterol\n• **Fish oil** → Reduces inflammation\n• **Walking** → Improves metabolism\n\n**Expected improvement:**\nWith 70%+ consistency, LDL could drop to ~105-115 mg/dL in 90 days.`;
+                }
+                
+                if (m.includes('inflammation') || m.includes('crp')) {
+                    return `Let me explain inflammation.\n\n**Your hs-CRP: ${user.biomarkers.hsCRP.value} ${user.biomarkers.hsCRP.unit}**\n• Optimal: ${user.biomarkers.hsCRP.optimal}\n• Status: Elevated ⚠️\n\n**What it is:**\nChronic inflammation is like a slow-burning fire in your body. It damages blood vessels and accelerates aging.\n\n**Why this matters:**\n1. Damages artery walls\n2. Makes plaque unstable\n3. Worsens insulin resistance\n\n**Your plan targets this:**\n• Fish oil → Anti-inflammatory\n• Sleep → Reduces inflammation\n• Walking → Lowers glucose spikes`;
+                }
+                
+                if (m.includes('food') || m.includes('eat')) {
+                    return `Based on your goals, here are power foods:\n\n**🟢 PRIORITIZE:**\n• **Fiber**: Oatmeal, beans, apples\n• **Omega-3**: Salmon, walnuts, chia\n• **Vegetables**: Leafy greens, broccoli\n• **Healthy fats**: Olive oil, avocado\n\n**🔴 REDUCE:**\n• Refined carbs (white bread, pasta)\n• Added sugars\n• Processed meats\n• Excess alcohol\n\n**Tonight's dinner idea:**\nSalmon + roasted vegetables + quinoa 🎯`;
+                }
+                
+                if (m.includes('progress') || m.includes('track')) {
+                    return `Let me check your progress... 📊\n\n**Day 7 Summary:**\n• Consistency: **75%** ✓\n• Current streak: **5 days** 🔥\n• Actions completed today: **3/4**\n\n**You're doing great!**\nAt this pace, you're on track for meaningful improvements by Day 90.\n\n**Projected changes:**\n• LDL: 145 → ~115 mg/dL\n• hs-CRP: 3.2 → ~1.5 mg/L`;
+                }
+                
+                return `Thanks for your question!\n\nBased on your profile:\n• Health Score: ${user.healthScore}/100\n• Bio Age: ${user.biologicalAge} (Calendar: ${user.chronologicalAge})\n\n**Try asking about:**\n• Any biomarker (LDL, hs-CRP, glucose)\n• Food recommendations\n• Your progress\n\nWhat would you like to explore?`;
+            };
+            
+            const sendMessage = (text) => {
+                const msg = text || input;
+                if (!msg.trim()) return;
+                
+                setMessages(prev => [...prev, { role: 'user', content: msg }]);
+                setInput('');
+                setIsTyping(true);
+                
+                setTimeout(() => {
+                    setMessages(prev => [...prev, { role: 'bot', content: getResponse(msg) }]);
+                    setIsTyping(false);
+                }, 1000 + Math.random() * 1000);
+            };
+            
+            return (
+                <div className="max-w-2xl mx-auto h-screen flex flex-col pb-20 md:pb-4 md:pt-20">
+                    {/* Header */}
+                    <div className="p-4 border-b border-slate-200 bg-white/80 backdrop-blur">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-vytal-500 to-emerald-500 flex items-center justify-center">
+                                <span className="text-white">✨</span>
+                            </div>
+                            <div>
+                                <h1 className="font-semibold text-slate-800">Health Chat</h1>
+                                <p className="text-xs text-slate-500">Ask me anything about your health</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        {/* Quick topics */}
+                        {messages.length === 1 && (
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                {quickTopics.map(topic => (
+                                    <button
+                                        key={topic}
+                                        onClick={() => sendMessage(topic)}
+                                        className="card p-4 text-left hover:shadow-md transition-shadow"
+                                    >
+                                        <p className="text-sm font-medium text-slate-700">{topic}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        
+                        {messages.map((msg, i) => (
+                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+                                {msg.role === 'bot' && (
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-vytal-500 to-emerald-500 flex items-center justify-center mr-2 flex-shrink-0">
+                                        <span className="text-white text-sm">V</span>
+                                    </div>
+                                )}
+                                <div className={`max-w-[80%] px-4 py-3 ${
+                                    msg.role === 'user' 
+                                        ? 'chat-bubble-user text-white' 
+                                        : 'chat-bubble-bot text-slate-700'
+                                }`}>
+                                    <div className="text-sm whitespace-pre-wrap">
+                                        {msg.content.split('\n').map((line, j) => {
+                                            const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                                            return <p key={j} className={line === '' ? 'h-2' : 'mb-1'} dangerouslySetInnerHTML={{ __html: formatted }} />;
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        
+                        {isTyping && (
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-vytal-500 to-emerald-500 flex items-center justify-center">
+                                    <span className="text-white text-sm">V</span>
+                                </div>
+                                <div className="chat-bubble-bot px-4 py-3">
+                                    <div className="flex gap-1">
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div ref={messagesEndRef} />
+                    </div>
+                    
+                    {/* Input */}
+                    <div className="p-4 border-t border-slate-200 bg-white">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                                placeholder="Ask me anything..."
+                                className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-vytal-500/50"
+                            />
+                            <button
+                                onClick={() => sendMessage()}
+                                disabled={!input.trim() || isTyping}
+                                className="px-4 py-3 btn-primary text-white rounded-xl disabled:opacity-50"
+                            >
+                                Send
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2 text-center">
+                            AI assistant. Consult your doctor for medical advice.
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+        
+        // Main App
+        function App() {
+            const [currentTab, setCurrentTab] = useState('home');
+            const [userActions, setUserActions] = useState(actions);
+            
+            return (
+                <div className="min-h-screen pb-20 md:pt-16">
+                    <NavBar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+                    
+                    {currentTab === 'home' && (
+                        <HomePage user={mockUser} userActions={userActions} setUserActions={setUserActions} />
+                    )}
+                    {currentTab === 'actions' && (
+                        <ActionsPage userActions={userActions} setUserActions={setUserActions} />
+                    )}
+                    {currentTab === 'progress' && (
+                        <ProgressPage user={mockUser} />
+                    )}
+                    {currentTab === 'insights' && (
+                        <InsightsPage user={mockUser} />
+                    )}
+                    {currentTab === 'chat' && (
+                        <ChatPage user={mockUser} />
+                    )}
+                </div>
+            );
+        }
+        
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
+
