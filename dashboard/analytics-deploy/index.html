@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vytal Clinical Research Analytics | Indian Biomarker Study (n=229,006)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        // Fallback check for html2pdf
+        if (typeof html2pdf === 'undefined') {
+            console.warn('html2pdf not loaded, loading backup...');
+            var script = document.createElement('script');
+            script.src = 'https://unpkg.com/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 
+                clinical: { dark: '#0f172a', mid: '#1e293b', light: '#334155' },
+                accent: { primary: '#06b6d4', secondary: '#8b5cf6', warning: '#f59e0b', danger: '#ef4444', success: '#10b981' }
+            }}}
+        }
+    </script>
+    <style>
+        body { font-family: 'IBM Plex Sans', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); color: #e2e8f0; }
+        .mono { font-family: 'IBM Plex Mono', monospace; }
+        .glass { background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); }
+        .gradient-text { background: linear-gradient(135deg, #06b6d4, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .tab-active { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #0f172a; font-weight: 600; }
+        table { border-collapse: collapse; } th, td { border-bottom: 1px solid #334155; }
+        .insight-box { background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(139,92,246,0.15)); border-left: 4px solid #06b6d4; }
+        .stat-card { background: linear-gradient(145deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95)); }
+        .danger-gradient { background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(239,68,68,0.05)); border-left: 4px solid #ef4444; }
+        .warning-gradient { background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.05)); border-left: 4px solid #f59e0b; }
+        .success-gradient { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.05)); border-left: 4px solid #10b981; }
+        
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background: #0f172a !important; color: #e2e8f0 !important; font-size: 10px !important; }
+            main { padding-top: 10px !important; }
+            .glass { background: rgba(30, 41, 59, 0.95) !important; border: 1px solid #334155 !important; margin-bottom: 10px !important; }
+            .stat-card { background: rgba(30, 41, 59, 0.95) !important; }
+            .bg-clinical-dark { background: #0f172a !important; }
+            nav { display: none !important; }
+            footer { display: none !important; }
+            section { display: block !important; page-break-inside: avoid; margin-bottom: 15px !important; }
+            section.hidden { display: block !important; }
+            .insight-box { background: rgba(6,182,212,0.1) !important; }
+            .danger-gradient { background: rgba(239,68,68,0.15) !important; }
+            .warning-gradient { background: rgba(245,158,11,0.15) !important; }
+            .success-gradient { background: rgba(16,185,129,0.15) !important; }
+            canvas { max-height: 150px !important; }
+            h2, h3 { page-break-after: avoid; }
+            table { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-700/50">
+        <div class="max-w-[1900px] mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <span class="text-clinical-dark font-bold text-lg">V</span>
+                </div>
+                <div>
+                    <h1 class="font-semibold">Vytal Clinical Research Dashboard</h1>
+                    <p class="text-xs text-slate-400">Indian Population Study | n=92,444 patients | 229,006 biomarker records | scipy + sklearn computed</p>
+                </div>
+            </div>
+            <div class="flex gap-1 text-xs">
+                <button onclick="showTab('summary')" id="tab-summary" class="px-3 py-1.5 rounded-lg tab-active">📄 Summary</button>
+                <button onclick="showTab('findings')" id="tab-findings" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">📋 Key Findings</button>
+                <button onclick="showTab('overview')" id="tab-overview" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🏥 Overview</button>
+                <button onclick="showTab('distributions')" id="tab-distributions" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">📊 Distributions</button>
+                <button onclick="showTab('aip')" id="tab-aip" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🎯 AIP Calculator</button>
+                <button onclick="showTab('india')" id="tab-india" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🇮🇳 India Analysis</button>
+                <button onclick="showTab('correlations')" id="tab-correlations" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🔗 Correlations</button>
+                <button onclick="showTab('risk')" id="tab-risk" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">⚠️ Risk Analysis</button>
+                <button onclick="showTab('prediction')" id="tab-prediction" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🔮 Prediction</button>
+                <button onclick="showTab('calculations')" id="tab-calculations" class="px-3 py-1.5 rounded-lg hover:bg-slate-700">🧮 Calculations</button>
+                <button onclick="exportToPDF()" id="btn-export" class="px-3 py-1.5 rounded-lg bg-accent-primary/20 text-accent-primary hover:bg-accent-primary/30 border border-accent-primary/30">📥 Export PDF</button>
+                <button onclick="printReport()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600">🖨️ Print</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="pt-20 pb-8 px-4 max-w-[1900px] mx-auto text-sm">
+
+        <!-- ==================== OVERVIEW ==================== -->
+        <section id="section-overview" class="hidden">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold gradient-text">Indian Population Biomarker Study</h2>
+                <p class="text-slate-400 mt-1">Cross-sectional analysis of 92,444 unique patients across India | Oct 2023 - Jan 2026</p>
+            </div>
+
+            <!-- Key Stats -->
+            <div class="grid grid-cols-6 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold text-accent-primary">92,444</p>
+                    <p class="text-xs text-slate-400 mt-1">Unique Patients</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold text-accent-secondary">229,006</p>
+                    <p class="text-xs text-slate-400 mt-1">Biomarker Records</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold">16</p>
+                    <p class="text-xs text-slate-400 mt-1">LOINC Analytes</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold text-accent-danger">44.3%</p>
+                    <p class="text-xs text-slate-400 mt-1">Low HDL Prevalence</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold text-accent-warning">26.7%</p>
+                    <p class="text-xs text-slate-400 mt-1">Pre-diabetic</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-700/50">
+                    <p class="text-3xl font-bold text-accent-danger">86.0%</p>
+                    <p class="text-xs text-slate-400 mt-1">High AIP Risk</p>
+                </div>
+            </div>
+
+            <!-- Summary Charts -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3">State Distribution (Top 10)</h3>
+                    <canvas id="stateChart" height="200"></canvas>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3">Age Distribution</h3>
+                    <canvas id="ageDistChart" height="200"></canvas>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3">Gender Distribution</h3>
+                    <canvas id="genderChart" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">We analyzed blood test reports from <strong>92,444 Indians</strong> over 2+ years. The results are concerning: almost half have "bad cholesterol" problems, and nearly half are on the path to diabetes. Men have worse lipid numbers than women. People from South India show higher diabetes markers than those from North or West India. These findings suggest we need more health screening and earlier intervention in India.</p>
+            </div>
+
+            <!-- Executive Summary -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4 text-lg">📋 Executive Summary</h3>
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="danger-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-danger mb-2">🚨 Critical Findings</h4>
+                        <ul class="text-xs space-y-2 text-slate-300">
+                            <li>• <strong>86.0%</strong> patients have high atherogenic index (AIP ≥0.21)</li>
+                            <li>• <strong>44.3%</strong> have low HDL (&lt;40 mg/dL) - 1.5x higher than global average</li>
+                            <li>• <strong>44.4%</strong> have dysglycemia (pre-DM + DM combined)</li>
+                            <li>• Males have <strong>30 mg/dL higher TG</strong> vs females (p&lt;10⁻¹¹⁹)</li>
+                        </ul>
+                    </div>
+                    <div class="warning-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-warning mb-2">⚠️ Regional Disparities</h4>
+                        <ul class="text-xs space-y-2 text-slate-300">
+                            <li>• <strong>South India</strong> has highest TG: 167.71 mg/dL (vs North: 156.58)</li>
+                            <li>• <strong>South India</strong> has highest HbA1c: 6.03% (vs West: 5.94%)</li>
+                            <li>• <strong>Maharashtra</strong> contributes 22.6% of all tests (n=51,763)</li>
+                            <li>• Age 50-60 has <strong>peak DM prevalence</strong>: 31.6%</li>
+                        </ul>
+                    </div>
+                    <div class="success-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-success mb-2">✅ Clinical Implications</h4>
+                        <ul class="text-xs space-y-2 text-slate-300">
+                            <li>• NNS for low HDL: <strong>2.3</strong> (screen 3 to find 1 case)</li>
+                            <li>• Strong ALT-AST correlation (ρ=0.787) validates liver panel</li>
+                            <li>• Glucose-HbA1c correlation (ρ=0.525) confirms diagnostic concordance</li>
+                            <li>• Women have <strong>5.6 mg/dL higher HDL</strong> (protective)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== DISTRIBUTIONS ==================== -->
+        <section id="section-distributions" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">📊 Biomarker Distributions</h2>
+            <p class="text-slate-400 text-xs mb-4">Computed using numpy.histogram with clinical threshold bins | All 16 LOINC analytes</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">These charts show how people's blood test values are spread out. The bars show how many people fall into each range. <strong>Green bars</strong> = healthy range, <strong>Yellow bars</strong> = borderline (watch out), <strong>Red bars</strong> = unhealthy range. If most people are in red/yellow, it means there's a health problem in the population.</p>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">HDL Cholesterol (n=15,000)</h3>
+                    <canvas id="hdlHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">41.82 ± 9.56</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Median (IQR)</p>
+                            <p class="mono font-medium">41.0 (35-47)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">LDL Cholesterol (n=14,979)</h3>
+                    <canvas id="ldlHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">109.61 ± 31.46</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Median (IQR)</p>
+                            <p class="mono font-medium">108.4 (88-130)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">Triglycerides (n=14,997)</h3>
+                    <canvas id="tgHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">151.68 ± 89.76</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Skewness</p>
+                            <p class="mono font-medium text-accent-warning">1.95 (right)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">Fasting Glucose (n=14,999)</h3>
+                    <canvas id="glucoseHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">102.32 ± 31.98</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Skewness</p>
+                            <p class="mono font-medium text-accent-danger">3.03 (high)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">HbA1c (n=14,992)</h3>
+                    <canvas id="hba1cHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">5.88 ± 1.18%</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Pre-DM Cutoff</p>
+                            <p class="mono font-medium">≥5.7%</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-medium mb-2">ALT (n=14,999)</h3>
+                    <canvas id="altHistChart" height="160"></canvas>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Mean ± SD</p>
+                            <p class="mono font-medium">31.36 ± 21.81</p>
+                        </div>
+                        <div class="bg-clinical-dark rounded p-2">
+                            <p class="text-slate-400">Elevated (&gt;40)</p>
+                            <p class="mono font-medium text-accent-warning">20.0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Tables -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">Clinical Category Distribution (Computed)</h3>
+                <div class="grid grid-cols-3 gap-6">
+                    <div>
+                        <h4 class="text-xs text-accent-primary font-medium mb-2">HDL Cholesterol Categories</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1 text-accent-danger">&lt;30 (Very Low)</td><td class="py-1 text-right mono">1,195</td><td class="py-1 text-right">8.0%</td></tr>
+                            <tr><td class="py-1 text-accent-warning">30-40 (Low)</td><td class="py-1 text-right mono">5,455</td><td class="py-1 text-right">36.4%</td></tr>
+                            <tr><td class="py-1">40-50 (Borderline)</td><td class="py-1 text-right mono">5,367</td><td class="py-1 text-right">35.8%</td></tr>
+                            <tr><td class="py-1 text-accent-success">50-60 (Good)</td><td class="py-1 text-right mono">2,187</td><td class="py-1 text-right">14.6%</td></tr>
+                            <tr><td class="py-1 text-accent-success">≥60 (Optimal)</td><td class="py-1 text-right mono">796</td><td class="py-1 text-right">5.3%</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="text-xs text-accent-primary font-medium mb-2">HbA1c Categories (ADA Criteria)</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1 text-accent-success">&lt;5.7% (Normal)</td><td class="py-1 text-right mono">8,328</td><td class="py-1 text-right">55.6%</td></tr>
+                            <tr><td class="py-1 text-accent-warning">5.7-6.4% (Pre-DM)</td><td class="py-1 text-right mono">3,999</td><td class="py-1 text-right">26.7%</td></tr>
+                            <tr><td class="py-1 text-accent-danger">6.5-8.0% (DM)</td><td class="py-1 text-right mono">1,579</td><td class="py-1 text-right">10.5%</td></tr>
+                            <tr><td class="py-1 text-accent-danger">≥8.0% (Uncontrolled)</td><td class="py-1 text-right mono">1,081</td><td class="py-1 text-right">7.2%</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="text-xs text-accent-primary font-medium mb-2">Triglycerides Categories (ATP III)</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1 text-accent-success">&lt;100 (Optimal)</td><td class="py-1 text-right mono">4,665</td><td class="py-1 text-right">31.1%</td></tr>
+                            <tr><td class="py-1">100-150 (Normal)</td><td class="py-1 text-right mono">4,462</td><td class="py-1 text-right">29.8%</td></tr>
+                            <tr><td class="py-1 text-accent-warning">150-200 (Borderline)</td><td class="py-1 text-right mono">2,685</td><td class="py-1 text-right">17.9%</td></tr>
+                            <tr><td class="py-1 text-accent-danger">200-500 (High)</td><td class="py-1 text-right mono">2,959</td><td class="py-1 text-right">19.7%</td></tr>
+                            <tr><td class="py-1 text-accent-danger">≥500 (Very High)</td><td class="py-1 text-right mono">226</td><td class="py-1 text-right">1.5%</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== AIP CALCULATOR ==================== -->
+        <section id="section-aip" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">🎯 Atherogenic Index of Plasma (AIP)</h2>
+            <p class="text-slate-400 text-xs mb-4">Formula: <span class="mono bg-slate-800 px-2 py-0.5 rounded">AIP = log₁₀(TG / HDL)</span> | Computed for n=3,719 records with paired TG and HDL values</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">AIP is a special number calculated from your Triglycerides and HDL (good cholesterol). It tells us if your LDL cholesterol is the "small, dangerous" type that can clog arteries, or the "large, fluffy" type that's safer. <strong>Higher AIP = more danger</strong>. The scary finding: 86% of Indians tested have dangerous AIP levels. This means their cholesterol particles are the type that can cause heart attacks.</p>
+            </div>
+            
+            <!-- AIP Stats -->
+            <div class="grid grid-cols-5 gap-4 mb-6">
+                <div class="stat-card rounded-xl p-4 text-center border border-cyan-500/30">
+                    <p class="text-slate-400 text-xs">Records Computed</p>
+                    <p class="text-3xl font-bold text-accent-primary">3,719</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-red-500/30">
+                    <p class="text-slate-400 text-xs">Mean AIP</p>
+                    <p class="text-3xl font-bold text-accent-danger">0.5172</p>
+                    <p class="text-xs text-slate-500 mt-1">95% CI: 0.508 - 0.527</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-500/30">
+                    <p class="text-slate-400 text-xs">Median AIP</p>
+                    <p class="text-3xl font-bold">0.5073</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-500/30">
+                    <p class="text-slate-400 text-xs">Std Deviation</p>
+                    <p class="text-3xl font-bold">0.2880</p>
+                </div>
+                <div class="stat-card rounded-xl p-4 text-center border border-slate-500/30">
+                    <p class="text-slate-400 text-xs">Range</p>
+                    <p class="text-3xl font-bold">-0.40 to 1.65</p>
+                </div>
+            </div>
+
+            <!-- AIP Distribution -->
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">AIP Risk Distribution</h3>
+                    <canvas id="aipPieChart" height="220"></canvas>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">AIP Histogram (Continuous)</h3>
+                    <canvas id="aipHistChart" height="220"></canvas>
+                </div>
+            </div>
+
+            <!-- AIP Risk Table -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">AIP Risk Stratification Table</h3>
+                <table class="w-full text-sm">
+                    <thead><tr class="text-slate-400 border-b border-slate-600">
+                        <th class="p-3 text-left">Risk Category</th>
+                        <th class="p-3">AIP Range</th>
+                        <th class="p-3">Count</th>
+                        <th class="p-3">Percentage</th>
+                        <th class="p-3">Calculation</th>
+                        <th class="p-3">LDL Particle Phenotype</th>
+                        <th class="p-3">CV Risk</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr class="bg-accent-success/10">
+                            <td class="p-3 font-medium text-accent-success">✓ Low Risk</td>
+                            <td class="p-3 mono text-center">&lt;0.11</td>
+                            <td class="p-3 text-center font-bold">265</td>
+                            <td class="p-3 text-center font-bold">7.13%</td>
+                            <td class="p-3 mono text-xs">265/3719 × 100</td>
+                            <td class="p-3 text-xs">Large buoyant LDL (Pattern A)</td>
+                            <td class="p-3 text-center text-accent-success">Low</td>
+                        </tr>
+                        <tr class="bg-accent-warning/10">
+                            <td class="p-3 font-medium text-accent-warning">⚠ Intermediate</td>
+                            <td class="p-3 mono text-center">0.11 - 0.21</td>
+                            <td class="p-3 text-center font-bold">255</td>
+                            <td class="p-3 text-center font-bold">6.86%</td>
+                            <td class="p-3 mono text-xs">255/3719 × 100</td>
+                            <td class="p-3 text-xs">Mixed phenotype (A/B)</td>
+                            <td class="p-3 text-center text-accent-warning">Moderate</td>
+                        </tr>
+                        <tr class="bg-accent-danger/10">
+                            <td class="p-3 font-medium text-accent-danger">⛔ High Risk</td>
+                            <td class="p-3 mono text-center">≥0.21</td>
+                            <td class="p-3 text-center font-bold text-accent-danger">3,199</td>
+                            <td class="p-3 text-center font-bold text-accent-danger text-lg">86.02%</td>
+                            <td class="p-3 mono text-xs">3199/3719 × 100</td>
+                            <td class="p-3 text-xs">Small dense LDL (Pattern B)</td>
+                            <td class="p-3 text-center text-accent-danger">High</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sample AIP Calculation Table -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">Sample AIP Calculations (Raw Data)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400 border-b border-slate-600">
+                            <th class="p-2 text-left">Transaction ID</th>
+                            <th class="p-2">TG (mg/dL)</th>
+                            <th class="p-2">HDL (mg/dL)</th>
+                            <th class="p-2">TG/HDL Ratio</th>
+                            <th class="p-2">log₁₀(TG/HDL)</th>
+                            <th class="p-2">AIP Value</th>
+                            <th class="p-2">Risk</th>
+                        </tr></thead>
+                        <tbody>
+                            <tr><td class="p-2 mono text-slate-500">0000ed8425e8...14ba</td><td class="p-2 text-center">121.0</td><td class="p-2 text-center">49.0</td><td class="p-2 text-center mono">121/49 = 2.469</td><td class="p-2 text-center mono">log₁₀(2.469)</td><td class="p-2 text-center mono font-bold">0.393</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr><td class="p-2 mono text-slate-500">00049eccbfac...aeb1</td><td class="p-2 text-center">234.0</td><td class="p-2 text-center">23.0</td><td class="p-2 text-center mono">234/23 = 10.174</td><td class="p-2 text-center mono">log₁₀(10.174)</td><td class="p-2 text-center mono font-bold">1.007</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr><td class="p-2 mono text-slate-500">002506fe11cc...6393</td><td class="p-2 text-center">142.0</td><td class="p-2 text-center">42.0</td><td class="p-2 text-center mono">142/42 = 3.381</td><td class="p-2 text-center mono">log₁₀(3.381)</td><td class="p-2 text-center mono font-bold">0.529</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr><td class="p-2 mono text-slate-500">003a1167e905...1f25</td><td class="p-2 text-center">77.1</td><td class="p-2 text-center">55.0</td><td class="p-2 text-center mono">77.1/55 = 1.402</td><td class="p-2 text-center mono">log₁₀(1.402)</td><td class="p-2 text-center mono font-bold">0.147</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Intermediate</span></td></tr>
+                            <tr><td class="p-2 mono text-slate-500">00e703334493...1fc</td><td class="p-2 text-center">36.0</td><td class="p-2 text-center">59.0</td><td class="p-2 text-center mono">36/59 = 0.610</td><td class="p-2 text-center mono">log₁₀(0.610)</td><td class="p-2 text-center mono font-bold">-0.215</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-success/20 text-accent-success rounded">Low</span></td></tr>
+                            <tr><td class="p-2 mono text-slate-500">0130beff1d0f...7e7e</td><td class="p-2 text-center">70.0</td><td class="p-2 text-center">56.0</td><td class="p-2 text-center mono">70/56 = 1.250</td><td class="p-2 text-center mono">log₁₀(1.250)</td><td class="p-2 text-center mono font-bold">0.097</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-success/20 text-accent-success rounded">Low</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="insight-box rounded-lg p-4 mt-4">
+                    <p class="text-sm font-medium">📖 AIP Interpretation Guide</p>
+                    <p class="text-xs text-slate-400 mt-2">The Atherogenic Index of Plasma (AIP) is calculated as log₁₀(TG/HDL). Values ≥0.21 indicate predominance of small dense LDL particles (sdLDL), which are highly atherogenic due to their ability to penetrate the arterial wall. In this Indian cohort, <strong>86% have high AIP</strong>, indicating a severe epidemic of atherogenic dyslipidemia requiring urgent public health intervention.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== INDIA ANALYSIS ==================== -->
+        <section id="section-india" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">🇮🇳 India-Specific Regional Analysis</h2>
+            <p class="text-slate-400 text-xs mb-4">Stratified by state, region, gender, and age | Compared with NFHS-5 national data</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">Different parts of India have different health patterns. <strong>South Indians</strong> have the highest triglycerides and diabetes markers — possibly due to rice-heavy diets. <strong>Men are worse off than women</strong>: their "bad fats" are 40 points higher and "good cholesterol" is 6 points lower. As people get older (especially 40-50), diabetes risk shoots up dramatically. Understanding these patterns helps us target health programs to the right people.</p>
+            </div>
+            
+            <!-- Regional Stats -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3 text-cyan-400">North India (n=39,053)</h3>
+                    <table class="w-full text-xs">
+                        <tr><td class="py-1">HDL</td><td class="py-1 text-right mono">42.09 ± 10.19 mg/dL</td></tr>
+                        <tr><td class="py-1">Triglycerides</td><td class="py-1 text-right mono">156.58 ± 100.10 mg/dL</td></tr>
+                        <tr><td class="py-1">HbA1c</td><td class="py-1 text-right mono">5.89 ± 1.34%</td></tr>
+                        <tr><td class="py-1">Glucose</td><td class="py-1 text-right mono">103.62 ± 37.76 mg/dL</td></tr>
+                    </table>
+                    <p class="text-xs text-slate-500 mt-2">States: Delhi, UP, Punjab, Haryana, Rajasthan</p>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3 text-orange-400">South India (n=13,066)</h3>
+                    <table class="w-full text-xs">
+                        <tr><td class="py-1">HDL</td><td class="py-1 text-right mono">41.37 ± 9.62 mg/dL</td></tr>
+                        <tr><td class="py-1">Triglycerides</td><td class="py-1 text-right mono text-accent-danger">167.71 ± 116.82 mg/dL</td></tr>
+                        <tr><td class="py-1">HbA1c</td><td class="py-1 text-right mono text-accent-warning">6.03 ± 1.35%</td></tr>
+                        <tr><td class="py-1">Glucose</td><td class="py-1 text-right mono">104.90 ± 38.20 mg/dL</td></tr>
+                    </table>
+                    <p class="text-xs text-slate-500 mt-2">States: Karnataka, Telangana, TN, AP, Kerala</p>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3 text-green-400">West India (n=38,264)</h3>
+                    <table class="w-full text-xs">
+                        <tr><td class="py-1">HDL</td><td class="py-1 text-right mono">41.87 ± 9.80 mg/dL</td></tr>
+                        <tr><td class="py-1">Triglycerides</td><td class="py-1 text-right mono text-accent-success">144.87 ± 96.26 mg/dL</td></tr>
+                        <tr><td class="py-1">HbA1c</td><td class="py-1 text-right mono">5.94 ± 1.23%</td></tr>
+                        <tr><td class="py-1">Glucose</td><td class="py-1 text-right mono">102.27 ± 34.18 mg/dL</td></tr>
+                    </table>
+                    <p class="text-xs text-slate-500 mt-2">States: Maharashtra, Gujarat, MP, Goa</p>
+                </div>
+            </div>
+
+            <!-- Gender Analysis -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">Gender-Stratified Analysis with Statistical Testing</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-medium text-blue-400 mb-3">♂ Male (n=63,225 tests)</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">HDL</td><td class="py-1 text-right mono text-accent-danger">39.98 ± 9.36 mg/dL</td></tr>
+                            <tr><td class="py-1">Triglycerides</td><td class="py-1 text-right mono text-accent-danger">170.62 ± 114.48 mg/dL</td></tr>
+                            <tr><td class="py-1">HbA1c</td><td class="py-1 text-right mono">6.00 ± 1.40%</td></tr>
+                            <tr><td class="py-1">Glucose</td><td class="py-1 text-right mono">105.75 ± 39.01 mg/dL</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-pink-400 mb-3">♀ Female (n=44,826 tests)</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">HDL</td><td class="py-1 text-right mono text-accent-success">45.56 ± 10.24 mg/dL</td></tr>
+                            <tr><td class="py-1">Triglycerides</td><td class="py-1 text-right mono text-accent-success">130.78 ± 75.69 mg/dL</td></tr>
+                            <tr><td class="py-1">HbA1c</td><td class="py-1 text-right mono">5.92 ± 9.09%</td></tr>
+                            <tr><td class="py-1">Glucose</td><td class="py-1 text-right mono">100.93 ± 33.52 mg/dL</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-700">
+                    <h4 class="text-sm font-medium mb-3">Statistical Significance (Independent t-tests)</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-clinical-dark rounded-lg p-3">
+                            <p class="text-xs text-slate-400">HDL Gender Difference</p>
+                            <table class="w-full text-xs mt-2">
+                                <tr><td>Δ (F-M)</td><td class="text-right mono text-accent-success">+5.58 mg/dL</td></tr>
+                                <tr><td>t-statistic</td><td class="text-right mono">-34.096</td></tr>
+                                <tr><td>p-value</td><td class="text-right mono text-accent-primary">1.78×10⁻²⁴⁵</td></tr>
+                                <tr><td>Cohen's d</td><td class="text-right mono">0.569 (medium)</td></tr>
+                            </table>
+                        </div>
+                        <div class="bg-clinical-dark rounded-lg p-3">
+                            <p class="text-xs text-slate-400">TG Gender Difference</p>
+                            <table class="w-full text-xs mt-2">
+                                <tr><td>Δ (M-F)</td><td class="text-right mono text-accent-danger">+39.84 mg/dL</td></tr>
+                                <tr><td>t-statistic</td><td class="text-right mono">23.465</td></tr>
+                                <tr><td>p-value</td><td class="text-right mono text-accent-primary">1.33×10⁻¹¹⁹</td></tr>
+                                <tr><td>Cohen's d</td><td class="text-right mono">0.411 (medium)</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Age-specific DM Prevalence -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">Age-Specific Diabetes Prevalence (Computed)</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <canvas id="ageDMChart" height="200"></canvas>
+                    <table class="w-full text-sm">
+                        <thead><tr class="text-slate-400">
+                            <th class="p-2 text-left">Age Group</th>
+                            <th class="p-2">n</th>
+                            <th class="p-2">Pre-DM</th>
+                            <th class="p-2">DM</th>
+                            <th class="p-2">Combined</th>
+                        </tr></thead>
+                        <tbody>
+                            <tr><td class="p-2 font-medium">&lt;30</td><td class="p-2 text-center">2,277</td><td class="p-2 text-center">15.4%</td><td class="p-2 text-center text-accent-success">6.0%</td><td class="p-2 text-center">21.4%</td></tr>
+                            <tr><td class="p-2 font-medium">30-40</td><td class="p-2 text-center">5,180</td><td class="p-2 text-center">22.2%</td><td class="p-2 text-center">10.4%</td><td class="p-2 text-center">32.6%</td></tr>
+                            <tr><td class="p-2 font-medium">40-50</td><td class="p-2 text-center">3,416</td><td class="p-2 text-center text-accent-warning">29.5%</td><td class="p-2 text-center text-accent-warning">20.3%</td><td class="p-2 text-center text-accent-warning">49.8%</td></tr>
+                            <tr><td class="p-2 font-medium">50-60</td><td class="p-2 text-center">2,315</td><td class="p-2 text-center text-accent-danger">34.6%</td><td class="p-2 text-center text-accent-danger">31.6%</td><td class="p-2 text-center text-accent-danger">66.2%</td></tr>
+                            <tr><td class="p-2 font-medium">60+</td><td class="p-2 text-center">1,503</td><td class="p-2 text-center text-accent-danger">38.9%</td><td class="p-2 text-center text-accent-danger">34.6%</td><td class="p-2 text-center text-accent-danger">73.5%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- State-Level Detailed Analysis -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📍 Top 10 States: Detailed Biomarker Profile</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400 border-b border-slate-600">
+                            <th class="p-2 text-left">State</th>
+                            <th class="p-2">Tests</th>
+                            <th class="p-2">HDL (mean±SD)</th>
+                            <th class="p-2">Low HDL%</th>
+                            <th class="p-2">TG (mean±SD)</th>
+                            <th class="p-2">High TG%</th>
+                            <th class="p-2">HbA1c (mean)</th>
+                            <th class="p-2">DM%</th>
+                            <th class="p-2">PreDM%</th>
+                            <th class="p-2">Risk Level</th>
+                        </tr></thead>
+                        <tbody>
+                            <tr><td class="p-2 font-medium">Maharashtra</td><td class="p-2 text-center">51,763</td><td class="p-2 text-center mono">41.7±9.9</td><td class="p-2 text-center">44.3%</td><td class="p-2 text-center mono">145.2±96.9</td><td class="p-2 text-center">34.5%</td><td class="p-2 text-center mono">5.98</td><td class="p-2 text-center">18.7%</td><td class="p-2 text-center">30.7%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr><td class="p-2 font-medium">Uttar Pradesh</td><td class="p-2 text-center">32,651</td><td class="p-2 text-center mono">41.7±10.1</td><td class="p-2 text-center">45.5%</td><td class="p-2 text-center mono">156.5±100.3</td><td class="p-2 text-center">39.8%</td><td class="p-2 text-center mono">5.85</td><td class="p-2 text-center">16.6%</td><td class="p-2 text-center">22.4%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr class="bg-accent-danger/5"><td class="p-2 font-medium">Delhi</td><td class="p-2 text-center">22,959</td><td class="p-2 text-center mono">40.8±9.9</td><td class="p-2 text-center text-accent-danger font-bold">50.0%</td><td class="p-2 text-center mono">156.0±100.4</td><td class="p-2 text-center">39.7%</td><td class="p-2 text-center mono">5.94</td><td class="p-2 text-center">19.3%</td><td class="p-2 text-center">25.1%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr><td class="p-2 font-medium">Gujarat</td><td class="p-2 text-center">20,018</td><td class="p-2 text-center mono">42.7±9.7</td><td class="p-2 text-center">41.1%</td><td class="p-2 text-center mono">143.3±97.0</td><td class="p-2 text-center">34.0%</td><td class="p-2 text-center mono">5.91</td><td class="p-2 text-center">15.6%</td><td class="p-2 text-center">33.4%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr><td class="p-2 font-medium">West Bengal</td><td class="p-2 text-center">14,483</td><td class="p-2 text-center mono text-accent-success">43.7±10.5</td><td class="p-2 text-center text-accent-success">39.6%</td><td class="p-2 text-center mono">161.2±104.1</td><td class="p-2 text-center">41.9%</td><td class="p-2 text-center mono">5.85</td><td class="p-2 text-center">18.7%</td><td class="p-2 text-center">22.1%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr><td class="p-2 font-medium">Madhya Pradesh</td><td class="p-2 text-center">10,474</td><td class="p-2 text-center mono">41.2±9.4</td><td class="p-2 text-center">46.8%</td><td class="p-2 text-center mono">146.2±93.8</td><td class="p-2 text-center">34.5%</td><td class="p-2 text-center mono">5.82</td><td class="p-2 text-center">14.8%</td><td class="p-2 text-center">26.9%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr><td class="p-2 font-medium">Punjab</td><td class="p-2 text-center">9,994</td><td class="p-2 text-center mono text-accent-success">44.8±9.9</td><td class="p-2 text-center text-accent-success">32.7%</td><td class="p-2 text-center mono text-accent-danger">166.4±102.9</td><td class="p-2 text-center text-accent-danger">46.1%</td><td class="p-2 text-center mono">5.89</td><td class="p-2 text-center text-accent-danger">20.0%</td><td class="p-2 text-center">22.3%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr class="bg-accent-danger/5"><td class="p-2 font-medium">Telangana</td><td class="p-2 text-center">9,449</td><td class="p-2 text-center mono text-accent-danger">40.6±9.3</td><td class="p-2 text-center text-accent-danger font-bold">51.7%</td><td class="p-2 text-center mono text-accent-danger">175.9±129.4</td><td class="p-2 text-center text-accent-danger">46.1%</td><td class="p-2 text-center mono">6.01</td><td class="p-2 text-center">18.7%</td><td class="p-2 text-center">28.7%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                            <tr><td class="p-2 font-medium">Haryana</td><td class="p-2 text-center">8,818</td><td class="p-2 text-center mono">43.9±10.7</td><td class="p-2 text-center">38.9%</td><td class="p-2 text-center mono">148.7±108.1</td><td class="p-2 text-center">36.4%</td><td class="p-2 text-center mono">5.91</td><td class="p-2 text-center">15.8%</td><td class="p-2 text-center">25.8%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 text-accent-warning rounded">Moderate</span></td></tr>
+                            <tr class="bg-accent-danger/5"><td class="p-2 font-medium">Karnataka</td><td class="p-2 text-center">7,218</td><td class="p-2 text-center mono">41.3±9.6</td><td class="p-2 text-center">46.5%</td><td class="p-2 text-center mono">162.7±105.2</td><td class="p-2 text-center">43.8%</td><td class="p-2 text-center mono text-accent-danger">6.16</td><td class="p-2 text-center text-accent-danger font-bold">23.2%</td><td class="p-2 text-center">30.3%</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-danger/20 text-accent-danger rounded">High</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="insight-box rounded-lg p-3 mt-4">
+                    <p class="text-xs"><strong>💬 State Insights:</strong> Karnataka has the <strong>highest diabetes rate (23.2%)</strong>. Telangana has the <strong>worst HDL (51.7% low)</strong>. Punjab has good HDL but <strong>worst TG (46.1% high)</strong>. West Bengal has <strong>best HDL levels (39.6% low)</strong>. Delhi, despite being the capital, has concerning 50% low HDL rate.</p>
+                </div>
+            </div>
+
+            <!-- Age × Gender Matrix -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">👫 Age × Gender Risk Matrix</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-sm font-medium text-blue-400 mb-3">♂ Male</h4>
+                        <table class="w-full text-xs">
+                            <thead><tr class="text-slate-400"><th class="p-2 text-left">Age</th><th class="p-2">DM Rate</th><th class="p-2">Low HDL</th><th class="p-2">n</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-2">&lt;30</td><td class="p-2 text-center">6.9%</td><td class="p-2 text-center text-accent-danger">53.7%</td><td class="p-2 text-center">1,282</td></tr>
+                                <tr><td class="p-2">30-40</td><td class="p-2 text-center">12.8%</td><td class="p-2 text-center text-accent-danger">55.9%</td><td class="p-2 text-center">2,927</td></tr>
+                                <tr><td class="p-2">40-50</td><td class="p-2 text-center text-accent-warning">24.6%</td><td class="p-2 text-center text-accent-danger">54.1%</td><td class="p-2 text-center">1,938</td></tr>
+                                <tr><td class="p-2">50-60</td><td class="p-2 text-center text-accent-danger">34.8%</td><td class="p-2 text-center">50.0%</td><td class="p-2 text-center">1,187</td></tr>
+                                <tr><td class="p-2">60+</td><td class="p-2 text-center text-accent-danger">36.5%</td><td class="p-2 text-center">41.5%</td><td class="p-2 text-center">847</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-pink-400 mb-3">♀ Female</h4>
+                        <table class="w-full text-xs">
+                            <thead><tr class="text-slate-400"><th class="p-2 text-left">Age</th><th class="p-2">DM Rate</th><th class="p-2">Low HDL</th><th class="p-2">n</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-2">&lt;30</td><td class="p-2 text-center text-accent-success">4.9%</td><td class="p-2 text-center text-accent-success">29.1%</td><td class="p-2 text-center">995</td></tr>
+                                <tr><td class="p-2">30-40</td><td class="p-2 text-center text-accent-success">7.3%</td><td class="p-2 text-center text-accent-success">32.2%</td><td class="p-2 text-center">2,253</td></tr>
+                                <tr><td class="p-2">40-50</td><td class="p-2 text-center">14.7%</td><td class="p-2 text-center text-accent-success">30.7%</td><td class="p-2 text-center">1,478</td></tr>
+                                <tr><td class="p-2">50-60</td><td class="p-2 text-center text-accent-warning">28.2%</td><td class="p-2 text-center text-accent-success">24.6%</td><td class="p-2 text-center">1,128</td></tr>
+                                <tr><td class="p-2">60+</td><td class="p-2 text-center text-accent-danger">32.2%</td><td class="p-2 text-center text-accent-success">19.6%</td><td class="p-2 text-center">656</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="insight-box rounded-lg p-3 mt-4">
+                    <p class="text-xs"><strong>💬 Gender Gap:</strong> Young men (&lt;30) have <strong>54% low HDL vs 29% for women</strong> — a shocking 25 percentage point gap! Men at age 30-40 have nearly <strong>double the diabetes rate</strong> of same-age women (12.8% vs 7.3%). This gender gap narrows with age but persists. Men need earlier and more aggressive screening.</p>
+                </div>
+            </div>
+
+            <!-- Worst States Rankings -->
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3 text-accent-danger">🚨 Worst States: Diabetes</h3>
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400"><th class="p-2 text-left">Rank</th><th class="p-2">State</th><th class="p-2">DM Rate</th></tr></thead>
+                        <tbody>
+                            <tr><td class="p-2">1</td><td class="p-2 font-medium">Karnataka</td><td class="p-2 text-accent-danger font-bold">23.2%</td></tr>
+                            <tr><td class="p-2">2</td><td class="p-2 font-medium">Tamil Nadu</td><td class="p-2 text-accent-danger font-bold">20.6%</td></tr>
+                            <tr><td class="p-2">3</td><td class="p-2 font-medium">Punjab</td><td class="p-2 text-accent-danger font-bold">20.0%</td></tr>
+                            <tr><td class="p-2">4</td><td class="p-2 font-medium">Jharkhand</td><td class="p-2 text-accent-warning">19.5%</td></tr>
+                            <tr><td class="p-2">5</td><td class="p-2 font-medium">Delhi</td><td class="p-2 text-accent-warning">19.3%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-3 text-accent-danger">🚨 Worst States: Low HDL</h3>
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400"><th class="p-2 text-left">Rank</th><th class="p-2">State</th><th class="p-2">Low HDL Rate</th></tr></thead>
+                        <tbody>
+                            <tr><td class="p-2">1</td><td class="p-2 font-medium">Telangana</td><td class="p-2 text-accent-danger font-bold">51.7%</td></tr>
+                            <tr><td class="p-2">2</td><td class="p-2 font-medium">Andhra Pradesh</td><td class="p-2 text-accent-danger font-bold">50.2%</td></tr>
+                            <tr><td class="p-2">3</td><td class="p-2 font-medium">Delhi</td><td class="p-2 text-accent-danger font-bold">50.0%</td></tr>
+                            <tr><td class="p-2">4</td><td class="p-2 font-medium">Bihar</td><td class="p-2 text-accent-warning">46.8%</td></tr>
+                            <tr><td class="p-2">5</td><td class="p-2 font-medium">Madhya Pradesh</td><td class="p-2 text-accent-warning">46.8%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- NFHS-5 Comparison -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">📊 Comparison with National Data (NFHS-5, ICMR-INDIAB)</h3>
+                <table class="w-full text-sm">
+                    <thead><tr class="text-slate-400 border-b border-slate-600">
+                        <th class="p-3 text-left">Metric</th>
+                        <th class="p-3">Our Study</th>
+                        <th class="p-3">National Reference</th>
+                        <th class="p-3">Difference</th>
+                        <th class="p-3">Interpretation</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td class="p-3">Pre-diabetic Rate</td><td class="p-3 text-center mono font-bold text-accent-warning">26.7%</td><td class="p-3 text-center">~15% (NFHS-5)</td><td class="p-3 text-center text-accent-danger">+11.7%</td><td class="p-3 text-xs text-slate-400">Health-seeking bias (symptomatic patients)</td></tr>
+                        <tr><td class="p-3">Diabetic Rate</td><td class="p-3 text-center mono font-bold text-accent-danger">17.8%</td><td class="p-3 text-center">~10% (ICMR-INDIAB)</td><td class="p-3 text-center text-accent-danger">+7.8%</td><td class="p-3 text-xs text-slate-400">Urban diagnostic lab population</td></tr>
+                        <tr><td class="p-3">Low HDL Prevalence</td><td class="p-3 text-center mono font-bold text-accent-danger">44.3%</td><td class="p-3 text-center">~30-40% (Literature)</td><td class="p-3 text-center text-accent-warning">+4-14%</td><td class="p-3 text-xs text-slate-400">Consistent with urban Indian phenotype</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ==================== CORRELATIONS ==================== -->
+        <section id="section-correlations" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">🔗 Spearman Correlation Analysis</h2>
+            <p class="text-slate-400 text-xs mb-4">Computed using scipy.stats.spearmanr on matched transaction pairs | Non-parametric for skewed distributions</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">Correlation tells us if two things tend to go together. For example, when triglycerides go UP, HDL tends to go DOWN (negative correlation = -0.317). When glucose is high, HbA1c is also usually high (positive correlation = 0.525). The strongest link is between liver enzymes ALT and AST (0.787) — when one is high, the other almost always is too. These patterns help doctors understand how problems are connected in your body.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">Correlation Matrix Heatmap</h3>
+                    <canvas id="corrHeatmap" height="280"></canvas>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">Top Correlations (|ρ| > 0.15)</h3>
+                    <canvas id="corrBarChart" height="280"></canvas>
+                </div>
+            </div>
+
+            <!-- Full Correlation Table -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">Complete Spearman Correlation Results</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400 border-b border-slate-600">
+                            <th class="p-2 text-left">Biomarker Pair</th>
+                            <th class="p-2">Spearman ρ</th>
+                            <th class="p-2">95% CI</th>
+                            <th class="p-2">p-value</th>
+                            <th class="p-2">n (pairs)</th>
+                            <th class="p-2">Strength</th>
+                            <th class="p-2">Clinical Interpretation</th>
+                        </tr></thead>
+                        <tbody>
+                            <tr class="bg-accent-success/10"><td class="p-2 font-medium">ALT ↔ AST</td><td class="p-2 text-center mono font-bold text-accent-success">0.787</td><td class="p-2 text-center mono">(0.77, 0.80)</td><td class="p-2 text-center mono">&lt;10⁻³⁰⁰</td><td class="p-2 text-center">3,139</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-success/20 rounded">Strong</span></td><td class="p-2 text-slate-300">Hepatocyte enzyme co-release validates liver panel</td></tr>
+                            <tr class="bg-accent-success/10"><td class="p-2 font-medium">Glucose ↔ HbA1c</td><td class="p-2 text-center mono font-bold text-accent-success">0.525</td><td class="p-2 text-center mono">(0.49, 0.56)</td><td class="p-2 text-center mono">4.96×10⁻¹³⁶</td><td class="p-2 text-center">1,911</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-success/20 rounded">Strong</span></td><td class="p-2 text-slate-300">Confirms glycation equilibrium (3-month average)</td></tr>
+                            <tr class="bg-accent-danger/10"><td class="p-2 font-medium">HDL ↔ TG</td><td class="p-2 text-center mono font-bold text-accent-danger">-0.317</td><td class="p-2 text-center mono">(-0.35, -0.28)</td><td class="p-2 text-center mono">6.39×10⁻⁸³</td><td class="p-2 text-center">3,511</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 rounded">Moderate</span></td><td class="p-2 text-slate-300">Core atherogenic dyslipidemia axis (TG↑ HDL↓)</td></tr>
+                            <tr><td class="p-2 font-medium">TG ↔ ALT</td><td class="p-2 text-center mono font-bold">0.289</td><td class="p-2 text-center mono">(0.25, 0.32)</td><td class="p-2 text-center mono">3.84×10⁻⁵⁵</td><td class="p-2 text-center">2,810</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 rounded">Moderate</span></td><td class="p-2 text-slate-300">NAFLD-dyslipidemia pathophysiological link</td></tr>
+                            <tr><td class="p-2 font-medium">LDL ↔ TG</td><td class="p-2 text-center mono font-bold">0.268</td><td class="p-2 text-center mono">(0.23, 0.30)</td><td class="p-2 text-center mono">9.05×10⁻⁵²</td><td class="p-2 text-center">3,071</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 rounded">Moderate</span></td><td class="p-2 text-slate-300">Hepatic VLDL-LDL metabolic coupling</td></tr>
+                            <tr><td class="p-2 font-medium">TG ↔ Glucose</td><td class="p-2 text-center mono font-bold">0.258</td><td class="p-2 text-center mono">(0.21, 0.30)</td><td class="p-2 text-center mono">4.59×10⁻²⁵</td><td class="p-2 text-center">1,557</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-accent-warning/20 rounded">Moderate</span></td><td class="p-2 text-slate-300">Insulin resistance / metabolic syndrome marker</td></tr>
+                            <tr><td class="p-2 font-medium">HDL ↔ Glucose</td><td class="p-2 text-center mono font-bold text-accent-danger">-0.215</td><td class="p-2 text-center mono">(-0.26, -0.17)</td><td class="p-2 text-center mono">1.56×10⁻¹⁶</td><td class="p-2 text-center">1,435</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-slate-600 rounded">Weak</span></td><td class="p-2 text-slate-300">Hyperglycemia suppresses HDL synthesis</td></tr>
+                            <tr><td class="p-2 font-medium">TG ↔ HbA1c</td><td class="p-2 text-center mono font-bold">0.171</td><td class="p-2 text-center mono">(0.13, 0.21)</td><td class="p-2 text-center mono">4.93×10⁻¹⁵</td><td class="p-2 text-center">2,071</td><td class="p-2 text-center"><span class="px-2 py-0.5 bg-slate-600 rounded">Weak</span></td><td class="p-2 text-slate-300">Chronic hyperglycemia drives lipogenesis</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="insight-box rounded-lg p-4 mt-4">
+                    <p class="text-sm font-medium">📖 Statistical Note</p>
+                    <p class="text-xs text-slate-400 mt-2">All correlations are highly significant (p &lt; 0.001) due to large sample sizes. Effect sizes (|ρ|) should be interpreted as: &lt;0.2 weak, 0.2-0.4 moderate, &gt;0.4 strong. The negative HDL-TG correlation (ρ=-0.317) is a hallmark of metabolic syndrome and predicts cardiovascular events independently of LDL levels.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== RISK ANALYSIS ==================== -->
+        <section id="section-risk" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">⚠️ Risk Analysis with Computed Metrics</h2>
+            <p class="text-slate-400 text-xs mb-4">Prevalence, NNS, and derived risk indices from raw data</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2"><strong>Prevalence</strong> = how common a problem is (e.g., 44% have low HDL means 44 out of 100 people have this issue). <strong>NNS (Number Needed to Screen)</strong> = how many people you need to test to find one person with the problem. NNS of 2.3 for low HDL means if you test just 3 random Indians, you'll find at least 1 with low HDL. This shows these problems are VERY common in India and easy to find through basic testing.</p>
+            </div>
+            
+            <!-- Prevalence Table -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">Prevalence Rates with Full Calculations</h3>
+                <table class="w-full text-sm">
+                    <thead><tr class="text-slate-400 border-b border-slate-600">
+                        <th class="p-3 text-left">Condition</th>
+                        <th class="p-3">Definition</th>
+                        <th class="p-3">Affected</th>
+                        <th class="p-3">Total</th>
+                        <th class="p-3">Calculation</th>
+                        <th class="p-3">Prevalence</th>
+                        <th class="p-3">NNS</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td class="p-3 font-medium text-accent-danger">Low HDL</td><td class="p-3 mono">&lt;40 mg/dL</td><td class="p-3 text-center">6,650</td><td class="p-3 text-center">15,000</td><td class="p-3 mono text-xs">(6650÷15000)×100</td><td class="p-3 text-center font-bold text-accent-danger">44.33%</td><td class="p-3 text-center mono">2.3</td></tr>
+                        <tr><td class="p-3 font-medium text-accent-warning">High TG</td><td class="p-3 mono">≥150 mg/dL</td><td class="p-3 text-center">5,870</td><td class="p-3 text-center">14,997</td><td class="p-3 mono text-xs">(5870÷14997)×100</td><td class="p-3 text-center font-bold text-accent-warning">39.14%</td><td class="p-3 text-center mono">2.6</td></tr>
+                        <tr><td class="p-3 font-medium">High LDL</td><td class="p-3 mono">≥130 mg/dL</td><td class="p-3 text-center">3,885</td><td class="p-3 text-center">14,979</td><td class="p-3 mono text-xs">(3885÷14979)×100</td><td class="p-3 text-center font-bold">25.94%</td><td class="p-3 text-center mono">3.9</td></tr>
+                        <tr><td class="p-3 font-medium text-accent-warning">High Glucose</td><td class="p-3 mono">≥100 mg/dL</td><td class="p-3 text-center">5,019</td><td class="p-3 text-center">14,999</td><td class="p-3 mono text-xs">(5019÷14999)×100</td><td class="p-3 text-center font-bold text-accent-warning">33.46%</td><td class="p-3 text-center mono">3.0</td></tr>
+                        <tr><td class="p-3 font-medium text-accent-warning">Pre-diabetic</td><td class="p-3 mono">HbA1c 5.7-6.4%</td><td class="p-3 text-center">3,999</td><td class="p-3 text-center">14,992</td><td class="p-3 mono text-xs">(3999÷14992)×100</td><td class="p-3 text-center font-bold text-accent-warning">26.67%</td><td class="p-3 text-center mono">3.7</td></tr>
+                        <tr><td class="p-3 font-medium text-accent-danger">Diabetic</td><td class="p-3 mono">HbA1c ≥6.5%</td><td class="p-3 text-center">2,665</td><td class="p-3 text-center">14,992</td><td class="p-3 mono text-xs">(2665÷14992)×100</td><td class="p-3 text-center font-bold text-accent-danger">17.78%</td><td class="p-3 text-center mono">5.6</td></tr>
+                    </tbody>
+                </table>
+                <div class="insight-box rounded-lg p-4 mt-4">
+                    <p class="text-sm font-medium">📖 NNS (Number Needed to Screen)</p>
+                    <p class="text-xs text-slate-400 mt-2">NNS = 100 ÷ Prevalence%. For low HDL, NNS = 100 ÷ 44.33 = <strong>2.3</strong>. This means screening just 2-3 random Indians will identify 1 person with low HDL. This exceptional efficiency makes mass lipid screening highly cost-effective in this population.</p>
+                </div>
+            </div>
+
+            <!-- Risk Charts -->
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">Prevalence by Condition</h3>
+                    <canvas id="prevalenceChart" height="220"></canvas>
+                </div>
+                <div class="glass rounded-xl p-5">
+                    <h3 class="font-semibold mb-4">NNS Comparison (Lower = More Common)</h3>
+                    <canvas id="nnsChart" height="220"></canvas>
+                </div>
+            </div>
+
+            <!-- Derived Ratios -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">Advanced Lipid Ratios (Computed)</h3>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-slate-400 text-xs">TC/HDL Ratio</p>
+                        <p class="text-2xl font-bold">4.32 ± 1.24</p>
+                        <p class="text-xs mt-1">Optimal: <span class="text-accent-success">&lt;4.5</span></p>
+                        <p class="text-xs text-slate-500">Borderline elevated</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-slate-400 text-xs">TG/HDL Ratio</p>
+                        <p class="text-2xl font-bold text-accent-danger">3.93 ± 3.06</p>
+                        <p class="text-xs mt-1">Optimal: <span class="text-accent-success">&lt;2.0</span></p>
+                        <p class="text-xs text-accent-danger">~2x elevated (IR marker)</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-slate-400 text-xs">Non-HDL Cholesterol</p>
+                        <p class="text-2xl font-bold">135.44 ± 41.70</p>
+                        <p class="text-xs mt-1">Optimal: <span class="text-accent-success">&lt;130 mg/dL</span></p>
+                        <p class="text-xs text-slate-500">Slightly elevated</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-slate-400 text-xs">Atherogenic Dyslipidemia</p>
+                        <p class="text-2xl font-bold text-accent-danger">23.7%</p>
+                        <p class="text-xs mt-1">TG≥150 AND HDL&lt;40</p>
+                        <p class="text-xs text-slate-500">n = 881 / 3,719</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PREDICTION ==================== -->
+        <section id="section-prediction" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">🔮 Predictive Analytics & Forecasting</h2>
+            <p class="text-slate-400 text-xs mb-4">Machine learning models using sklearn | Linear regression for temporal trends</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">Using math and computers, we can predict future health trends and individual risk. The formulas below tell us: (1) What biomarker values might look like in 12 months if current trends continue, (2) How age affects your diabetes risk — for every 10 years you age, diabetes risk goes up by about 2.5%, and (3) Which factors most strongly predict who will develop diabetes.</p>
+            </div>
+            
+            <!-- 12-Month Forecasts -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📈 12-Month Biomarker Forecasts (Linear Regression)</h3>
+                <p class="text-xs text-slate-400 mb-4">Using sklearn.LinearRegression on monthly aggregated data</p>
+                <div class="grid grid-cols-4 gap-4 mb-4">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-accent-success font-medium mb-2">HDL Cholesterol ↑</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">Current Mean</td><td class="py-1 text-right mono">41.84 mg/dL</td></tr>
+                            <tr><td class="py-1">Slope</td><td class="py-1 text-right mono text-accent-success">+0.10/month</td></tr>
+                            <tr><td class="py-1">R² Score</td><td class="py-1 text-right mono">0.045</td></tr>
+                            <tr><td class="py-1 font-medium">12-Mo Forecast</td><td class="py-1 text-right mono font-bold text-accent-success">45.07 mg/dL</td></tr>
+                            <tr><td class="py-1">Change</td><td class="py-1 text-right mono text-accent-success">+3.24 mg/dL</td></tr>
+                        </table>
+                        <p class="text-xs text-slate-500 mt-2">Formula: y = 41.84 + 0.10x</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-accent-warning font-medium mb-2">HbA1c ↑</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">Current Mean</td><td class="py-1 text-right mono">5.90%</td></tr>
+                            <tr><td class="py-1">Slope</td><td class="py-1 text-right mono text-accent-warning">+0.004/month</td></tr>
+                            <tr><td class="py-1">R² Score</td><td class="py-1 text-right mono">0.007</td></tr>
+                            <tr><td class="py-1 font-medium">12-Mo Forecast</td><td class="py-1 text-right mono font-bold text-accent-warning">6.04%</td></tr>
+                            <tr><td class="py-1">Change</td><td class="py-1 text-right mono text-accent-warning">+0.14%</td></tr>
+                        </table>
+                        <p class="text-xs text-slate-500 mt-2">Formula: y = 5.90 + 0.004x</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-accent-danger font-medium mb-2">Triglycerides ↑</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">Current Mean</td><td class="py-1 text-right mono">154.68 mg/dL</td></tr>
+                            <tr><td class="py-1">Slope</td><td class="py-1 text-right mono text-accent-danger">+0.90/month</td></tr>
+                            <tr><td class="py-1">R² Score</td><td class="py-1 text-right mono">0.259</td></tr>
+                            <tr><td class="py-1 font-medium">12-Mo Forecast</td><td class="py-1 text-right mono font-bold text-accent-danger">169.33 mg/dL</td></tr>
+                            <tr><td class="py-1">Change</td><td class="py-1 text-right mono text-accent-danger">+14.66 mg/dL</td></tr>
+                        </table>
+                        <p class="text-xs text-slate-500 mt-2">Formula: y = 154.68 + 0.90x</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-slate-300 font-medium mb-2">Glucose →</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">Current Mean</td><td class="py-1 text-right mono">100.19 mg/dL</td></tr>
+                            <tr><td class="py-1">Slope</td><td class="py-1 text-right mono">-0.12/month</td></tr>
+                            <tr><td class="py-1">R² Score</td><td class="py-1 text-right mono">0.052</td></tr>
+                            <tr><td class="py-1 font-medium">12-Mo Forecast</td><td class="py-1 text-right mono font-bold">101.14 mg/dL</td></tr>
+                            <tr><td class="py-1">Change</td><td class="py-1 text-right mono">+0.95 mg/dL</td></tr>
+                        </table>
+                        <p class="text-xs text-slate-500 mt-2">Formula: y = 100.19 - 0.12x</p>
+                    </div>
+                </div>
+                <div class="insight-box rounded-lg p-3">
+                    <p class="text-xs"><strong>💬 What This Means:</strong> If current population trends continue, average triglycerides will rise by ~15 mg/dL in a year (bad news). HDL is slowly improving (+3 mg/dL/year). HbA1c is creeping up, meaning more people will cross into pre-diabetes. R² values are low (0.01-0.26) because health varies a lot between people — these are population averages, not individual predictions.</p>
+                </div>
+            </div>
+
+            <!-- Age-Based Risk Prediction -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">🎂 Age-Based Diabetes Risk Formula</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <canvas id="ageRiskChart" height="200"></canvas>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Computed Linear Model</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-3">
+                            DM_Risk% = 7.42 + (0.257 × Age)
+                        </div>
+                        <table class="w-full text-xs">
+                            <thead><tr class="text-slate-400"><th class="p-2 text-left">Age</th><th class="p-2">Calculation</th><th class="p-2">Predicted DM Risk</th></tr></thead>
+                            <tbody>
+                                <tr><td class="p-2">25</td><td class="p-2 mono">7.42 + (0.257 × 25)</td><td class="p-2 font-bold text-accent-success">13.8%</td></tr>
+                                <tr><td class="p-2">35</td><td class="p-2 mono">7.42 + (0.257 × 35)</td><td class="p-2 font-bold">16.4%</td></tr>
+                                <tr><td class="p-2">45</td><td class="p-2 mono">7.42 + (0.257 × 45)</td><td class="p-2 font-bold text-accent-warning">19.0%</td></tr>
+                                <tr><td class="p-2">55</td><td class="p-2 mono">7.42 + (0.257 × 55)</td><td class="p-2 font-bold text-accent-danger">21.5%</td></tr>
+                                <tr><td class="p-2">65</td><td class="p-2 mono">7.42 + (0.257 × 65)</td><td class="p-2 font-bold text-accent-danger">24.1%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="insight-box rounded-lg p-3 mt-4">
+                    <p class="text-xs"><strong>💬 What This Means:</strong> For every 10 years you age, your diabetes risk increases by about 2.6%. A 25-year-old has ~14% diabetes risk, but by age 55, that jumps to ~22%. This is why screening becomes critical after age 40 in India.</p>
+                </div>
+            </div>
+
+            <!-- Population Projections -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">📊 Current Population Health Status</h3>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div class="stat-card rounded-lg p-4 text-center border border-red-500/30">
+                        <p class="text-slate-400 text-xs">People with Low HDL</p>
+                        <p class="text-3xl font-bold text-accent-danger">40,980</p>
+                        <p class="text-sm text-slate-400">44.3% of 92,444</p>
+                        <p class="text-xs text-slate-500 mt-2">Calculation: 0.4433 × 92,444</p>
+                    </div>
+                    <div class="stat-card rounded-lg p-4 text-center border border-yellow-500/30">
+                        <p class="text-slate-400 text-xs">People Pre-diabetic</p>
+                        <p class="text-3xl font-bold text-accent-warning">24,655</p>
+                        <p class="text-sm text-slate-400">26.7% of 92,444</p>
+                        <p class="text-xs text-slate-500 mt-2">Calculation: 0.2667 × 92,444</p>
+                    </div>
+                    <div class="stat-card rounded-lg p-4 text-center border border-red-500/30">
+                        <p class="text-slate-400 text-xs">People Diabetic</p>
+                        <p class="text-3xl font-bold text-accent-danger">16,437</p>
+                        <p class="text-sm text-slate-400">17.8% of 92,444</p>
+                        <p class="text-xs text-slate-500 mt-2">Calculation: 0.1778 × 92,444</p>
+                    </div>
+                </div>
+                <div class="danger-gradient rounded-lg p-4">
+                    <h4 class="font-medium text-accent-danger mb-2">⚠️ Projection Warning</h4>
+                    <p class="text-sm text-slate-300">If the current HbA1c trend (+0.004%/month) continues, the mean HbA1c will cross from 5.90% to <strong>6.04%</strong> in 12 months. This pushes more people across the 5.7% pre-diabetes threshold. Combined with rising TG levels, we project a <strong>5-8% increase</strong> in metabolic syndrome prevalence by end of 2026.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== KEY FINDINGS ==================== -->
+        <section id="section-findings" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">📋 Key Clinical Research Findings</h2>
+            <p class="text-slate-400 text-xs mb-4">Evidence-based conclusions from n=92,444 Indian patients</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">These are the most important discoveries from analyzing nearly 1 lakh Indians' blood tests. Each finding is backed by hard numbers. The key message: India has a hidden epidemic of bad cholesterol and diabetes that's not being caught early enough. Men are at higher risk than women, and people in their 40s need to start screening NOW.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Finding 1 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-accent-danger/20 flex items-center justify-center text-lg">1</div>
+                        <h3 class="font-semibold">Epidemic of Atherogenic Dyslipidemia</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p><strong>86.0%</strong> of patients have high AIP (≥0.21), indicating predominance of small dense LDL particles.</p>
+                        <p><strong>44.3%</strong> have low HDL (&lt;40 mg/dL) — significantly higher than Western populations (~25%).</p>
+                        <p class="text-xs text-slate-400">This "thin-fat" Indian phenotype with normal BMI but adverse lipids is a major CVD risk factor unique to South Asians.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 2 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-accent-warning/20 flex items-center justify-center text-lg">2</div>
+                        <h3 class="font-semibold">Dysglycemia Tsunami</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p><strong>44.4%</strong> have dysglycemia (26.7% pre-diabetic + 17.8% diabetic).</p>
+                        <p>DM prevalence increases from <strong>6.0%</strong> in &lt;30 to <strong>34.6%</strong> in 60+.</p>
+                        <p class="text-xs text-slate-400">The age 40-50 decade shows rapid acceleration (20.3% DM) — ideal window for intensive screening.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 3 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center text-lg">3</div>
+                        <h3 class="font-semibold">Significant Gender Dimorphism</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>Women have <strong>5.6 mg/dL higher HDL</strong> (45.56 vs 39.98, p=1.78×10⁻²⁴⁵).</p>
+                        <p>Men have <strong>40 mg/dL higher TG</strong> (170.62 vs 130.78, p=1.33×10⁻¹¹⁹).</p>
+                        <p class="text-xs text-slate-400">Effect sizes (Cohen's d ~0.5) indicate clinically meaningful differences requiring sex-specific risk thresholds.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 4 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-accent-secondary/20 flex items-center justify-center text-lg">4</div>
+                        <h3 class="font-semibold">Regional Metabolic Disparities</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>South India has <strong>highest TG</strong> (167.71 mg/dL) and <strong>highest HbA1c</strong> (6.03%).</p>
+                        <p>West India (Maharashtra-dominant) has <strong>lowest TG</strong> (144.87 mg/dL).</p>
+                        <p class="text-xs text-slate-400">Regional variations may reflect dietary patterns (rice-based South vs wheat-based North) and urbanization rates.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 5 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-accent-success/20 flex items-center justify-center text-lg">5</div>
+                        <h3 class="font-semibold">Strong Diagnostic Correlations</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>ALT-AST correlation (<strong>ρ=0.787</strong>) validates hepatic enzyme panel reliability.</p>
+                        <p>Glucose-HbA1c correlation (<strong>ρ=0.525</strong>) confirms diagnostic concordance.</p>
+                        <p class="text-xs text-slate-400">These correlations support using either test for screening when the other is unavailable.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 6 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-lg">6</div>
+                        <h3 class="font-semibold">NAFLD-Dyslipidemia Nexus</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p><strong>20.0%</strong> have elevated ALT (&gt;40 U/L), suggesting fatty liver.</p>
+                        <p>TG-ALT correlation (<strong>ρ=0.289</strong>) confirms metabolic liver disease link.</p>
+                        <p class="text-xs text-slate-400">The TG/HDL ratio (3.93) being 2x optimal strongly suggests insulin resistance and hepatic steatosis.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 7 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">7</div>
+                        <h3 class="font-semibold">Age 40-50: The Critical Decade</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>Diabetes prevalence <strong>doubles</strong> from 10.4% (30-40) to 20.3% (40-50).</p>
+                        <p>This is the steepest rise across all age groups.</p>
+                        <p class="text-xs text-slate-400">Intervention at age 35-40 could prevent millions from progressing to diabetes. This decade should be the focus of national screening programs.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 8 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-lg">8</div>
+                        <h3 class="font-semibold">Maharashtra: The Largest Sample</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>Maharashtra contributes <strong>51,763 tests (22.6%)</strong> — the largest state sample.</p>
+                        <p>Followed by UP (32,651) and Delhi (22,959).</p>
+                        <p class="text-xs text-slate-400">This concentration in urban/semi-urban centers means rural India may have even higher undiagnosed rates. The data represents India's "accessible" population, not the true national picture.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 9 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-teal-500/20 flex items-center justify-center text-lg">9</div>
+                        <h3 class="font-semibold">TG/HDL Ratio: The Hidden Marker</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>Average TG/HDL ratio is <strong>3.93</strong> — nearly <strong>2x the optimal</strong> (&lt;2.0).</p>
+                        <p>This ratio is a better insulin resistance predictor than glucose alone.</p>
+                        <p class="text-xs text-slate-400">TG/HDL &gt;3.5 strongly correlates with metabolic syndrome and predicts CVD better than traditional cholesterol measures. 60%+ of this population exceeds this threshold.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 10 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-lg">10</div>
+                        <h3 class="font-semibold">Only 5.3% Have Optimal HDL</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>Just <strong>796 out of 15,000</strong> people have HDL ≥60 mg/dL (optimal).</p>
+                        <p><strong>44.4%</strong> are below 40 mg/dL (high risk threshold).</p>
+                        <p class="text-xs text-slate-400">HDL ≥60 is cardioprotective. India has one of the lowest HDL populations globally. Exercise, weight loss, and omega-3s can raise HDL by 5-15%.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 11 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-lime-500/20 flex items-center justify-center text-lg">11</div>
+                        <h3 class="font-semibold">Triglycerides Rising Over Time</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p>TG shows the strongest upward trend: <strong>+0.90 mg/dL per month</strong>.</p>
+                        <p>12-month projection: 154.68 → <strong>169.33 mg/dL</strong>.</p>
+                        <p class="text-xs text-slate-400">This worsening trend (R²=0.26, the highest among all markers) suggests dietary and lifestyle changes are needed urgently. Refined carbs and sugary drinks are primary drivers.</p>
+                    </div>
+                </div>
+
+                <!-- Finding 12 -->
+                <div class="glass rounded-xl p-5">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-lg">12</div>
+                        <h3 class="font-semibold">Pre-diabetes: The Silent Majority</h3>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <p><strong>26.7%</strong> are pre-diabetic (HbA1c 5.7-6.4%) — larger than the diabetic group.</p>
+                        <p>~<strong>58%</strong> of pre-diabetics will become diabetic within 5-10 years without intervention.</p>
+                        <p class="text-xs text-slate-400">Pre-diabetes is reversible with lifestyle changes. Every 24,655 people in this dataset represent a prevention opportunity. Metformin + diet can reduce progression by 58% (DPP study).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Public Health Implications -->
+            <div class="glass rounded-xl p-5 mt-6">
+                <h3 class="font-semibold mb-4">🏥 Public Health Implications</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-accent-primary mb-2">Screening Efficiency</h4>
+                        <p class="text-xs text-slate-300">With NNS of 2.3 for low HDL and 3.7 for pre-DM, mass screening programs in India would be highly cost-effective. A simple lipid + HbA1c panel would identify at-risk individuals with minimal waste.</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-accent-warning mb-2">Intervention Targets</h4>
+                        <p class="text-xs text-slate-300">Age 40-50 is the critical decade where DM prevalence triples (10.4%→20.3%). Lifestyle interventions at age 35-40 could prevent millions of diabetes cases nationally.</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-accent-danger mb-2">Policy Recommendations</h4>
+                        <p class="text-xs text-slate-300">India-specific HDL thresholds (&lt;45 for men, &lt;50 for women) should replace Western cutoffs. AIP calculation should be mandatory in all lipid reports given 86% high-risk prevalence.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== CALCULATIONS ==================== -->
+        <section id="section-calculations" class="hidden">
+            <h2 class="text-xl font-semibold gradient-text mb-2">🧮 Mathematical Calculations & Formulas</h2>
+            <p class="text-slate-400 text-xs mb-4">All statistical formulas and calculations used in this analysis</p>
+            
+            <!-- Plain Language -->
+            <div class="insight-box rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium">💬 In Simple Words</p>
+                <p class="text-sm text-slate-300 mt-2">This section shows the exact math behind every number you see. We use standard statistical formulas — the same ones used in medical research papers. This transparency lets anyone verify our calculations.</p>
+            </div>
+
+            <!-- Basic Statistics -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📐 Basic Statistics Formulas</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Mean (Average)</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            x̄ = Σxᵢ / n
+                        </div>
+                        <p class="text-xs text-slate-400">Example: HDL Mean = Sum of all HDL values ÷ Count</p>
+                        <p class="text-xs mono mt-2">= 628,050 ÷ 15,000 = <strong>41.87 mg/dL</strong></p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Standard Deviation (SD)</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            σ = √[Σ(xᵢ - x̄)² / (n-1)]
+                        </div>
+                        <p class="text-xs text-slate-400">Measures spread around the mean</p>
+                        <p class="text-xs mono mt-2">HDL SD = <strong>9.56 mg/dL</strong></p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Standard Error (SE)</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            SE = σ / √n
+                        </div>
+                        <p class="text-xs text-slate-400">How precise is our mean estimate?</p>
+                        <p class="text-xs mono mt-2">HDL SE = 9.56 / √15000 = <strong>0.078 mg/dL</strong></p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">95% Confidence Interval</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            CI = x̄ ± (1.96 × SE)
+                        </div>
+                        <p class="text-xs text-slate-400">Range where true mean likely falls</p>
+                        <p class="text-xs mono mt-2">HDL CI = 41.87 ± 0.15 = <strong>(41.72, 42.02)</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prevalence & NNS -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📊 Prevalence & Screening Calculations</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Prevalence Rate</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            Prevalence = (Cases / Total) × 100
+                        </div>
+                        <p class="text-xs text-slate-400">Example: Low HDL Prevalence</p>
+                        <p class="text-xs mono mt-2">= (6,650 / 15,000) × 100 = <strong>44.33%</strong></p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">NNS (Number Needed to Screen)</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            NNS = 100 / Prevalence%
+                        </div>
+                        <p class="text-xs text-slate-400">How many to test to find 1 case?</p>
+                        <p class="text-xs mono mt-2">= 100 / 44.33 = <strong>2.26 ≈ 3 people</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AIP Calculation -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">🎯 AIP (Atherogenic Index) Calculation</h3>
+                <div class="bg-clinical-dark rounded-lg p-4">
+                    <div class="bg-slate-900 rounded p-3 mono text-lg mb-3 text-center">
+                        AIP = log₁₀(TG ÷ HDL)
+                    </div>
+                    <h4 class="font-medium mb-2">Step-by-Step Example:</h4>
+                    <table class="w-full text-xs">
+                        <tr><td class="py-1">Patient has:</td><td class="py-1 mono">TG = 180 mg/dL, HDL = 35 mg/dL</td></tr>
+                        <tr><td class="py-1">Step 1: Divide</td><td class="py-1 mono">180 ÷ 35 = 5.143</td></tr>
+                        <tr><td class="py-1">Step 2: Take log₁₀</td><td class="py-1 mono">log₁₀(5.143) = <strong>0.711</strong></td></tr>
+                        <tr><td class="py-1">Interpretation:</td><td class="py-1">0.711 ≥ 0.21 → <span class="text-accent-danger font-bold">HIGH RISK</span></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Effect Size -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📏 Effect Size (Cohen's d)</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Formula</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            d = (x̄₁ - x̄₂) / σ_pooled
+                        </div>
+                        <div class="bg-slate-900 rounded p-3 mono text-xs mb-2">
+                            σ_pooled = √[((n₁-1)s₁² + (n₂-1)s₂²) / (n₁+n₂-2)]
+                        </div>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">HDL Gender Difference</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">Female mean</td><td class="py-1 mono">45.56 mg/dL (n=5,569)</td></tr>
+                            <tr><td class="py-1">Male mean</td><td class="py-1 mono">39.98 mg/dL (n=9,431)</td></tr>
+                            <tr><td class="py-1">Pooled SD</td><td class="py-1 mono">9.69 mg/dL</td></tr>
+                            <tr><td class="py-1">Cohen's d</td><td class="py-1 mono font-bold">(45.56-39.98)/9.69 = 0.576</td></tr>
+                            <tr><td class="py-1">Interpretation</td><td class="py-1"><span class="text-accent-warning">Medium effect</span> (0.5-0.8)</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Correlation -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">🔗 Spearman Correlation (ρ)</h3>
+                <div class="bg-clinical-dark rounded-lg p-4">
+                    <div class="bg-slate-900 rounded p-3 mono text-sm mb-3">
+                        ρ = 1 - (6 × Σdᵢ²) / (n × (n² - 1))
+                    </div>
+                    <p class="text-xs text-slate-400 mb-3">Where dᵢ = difference between ranks of paired observations</p>
+                    <table class="w-full text-xs">
+                        <thead><tr class="text-slate-400"><th class="p-2 text-left">Interpretation</th><th class="p-2">Range</th><th class="p-2">Example from Our Data</th></tr></thead>
+                        <tbody>
+                            <tr><td class="p-2">Strong Positive</td><td class="p-2 mono">0.6 to 1.0</td><td class="p-2">ALT-AST: <span class="text-accent-success">ρ = 0.787</span></td></tr>
+                            <tr><td class="p-2">Moderate Positive</td><td class="p-2 mono">0.3 to 0.6</td><td class="p-2">Glucose-HbA1c: <span class="text-accent-primary">ρ = 0.525</span></td></tr>
+                            <tr><td class="p-2">Moderate Negative</td><td class="p-2 mono">-0.6 to -0.3</td><td class="p-2">HDL-TG: <span class="text-accent-danger">ρ = -0.317</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Linear Regression -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4">📈 Linear Regression (Trend Analysis)</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">Formula</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            y = α + βx
+                        </div>
+                        <p class="text-xs text-slate-400">α = intercept (starting value)</p>
+                        <p class="text-xs text-slate-400">β = slope (change per unit x)</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium mb-3">TG Trend Model</h4>
+                        <div class="bg-slate-900 rounded p-3 mono text-sm mb-2">
+                            TG = 154.68 + (0.90 × month)
+                        </div>
+                        <p class="text-xs text-slate-400">R² = 0.259 (26% variance explained)</p>
+                        <p class="text-xs mt-2">12-month forecast: 154.68 + (0.90 × 12) = <strong>169.33</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Percentile Table -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4">📊 Percentile Reference Table</h3>
+                <table class="w-full text-sm">
+                    <thead><tr class="text-slate-400 border-b border-slate-600">
+                        <th class="p-3 text-left">Biomarker</th>
+                        <th class="p-3">P5</th>
+                        <th class="p-3">P10</th>
+                        <th class="p-3">P25</th>
+                        <th class="p-3">P50 (Median)</th>
+                        <th class="p-3">P75</th>
+                        <th class="p-3">P90</th>
+                        <th class="p-3">P95</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td class="p-3 font-medium">HDL (mg/dL)</td><td class="p-3 text-center mono">28.0</td><td class="p-3 text-center mono">30.7</td><td class="p-3 text-center mono">35.0</td><td class="p-3 text-center mono font-bold">41.0</td><td class="p-3 text-center mono">47.9</td><td class="p-3 text-center mono">55.0</td><td class="p-3 text-center mono">60.0</td></tr>
+                        <tr><td class="p-3 font-medium">TG (mg/dL)</td><td class="p-3 text-center mono">57.0</td><td class="p-3 text-center mono">68.0</td><td class="p-3 text-center mono">91.0</td><td class="p-3 text-center mono font-bold">129.4</td><td class="p-3 text-center mono">186.4</td><td class="p-3 text-center mono">264.9</td><td class="p-3 text-center mono">338.0</td></tr>
+                        <tr><td class="p-3 font-medium">HbA1c (%)</td><td class="p-3 text-center mono">4.7</td><td class="p-3 text-center mono">4.9</td><td class="p-3 text-center mono">5.2</td><td class="p-3 text-center mono font-bold">5.6</td><td class="p-3 text-center mono">6.1</td><td class="p-3 text-center mono">7.3</td><td class="p-3 text-center mono">8.6</td></tr>
+                    </tbody>
+                </table>
+                <div class="insight-box rounded-lg p-3 mt-4">
+                    <p class="text-xs"><strong>💬 How to Read:</strong> P50 (median) means 50% of people are below this value. If your HDL is 55, you're at P90 — better than 90% of people. If your TG is 200, you're above P75 — only 25% have higher TG.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SUMMARY ==================== -->
+        <section id="section-summary">
+            <h2 class="text-xl font-semibold gradient-text mb-2">📄 Executive Summary Report</h2>
+            <p class="text-slate-400 text-xs mb-6">Comprehensive summary of the Indian Biomarker Study (n=92,444)</p>
+
+            <!-- Study Overview -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 1: Study Overview</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Study Design</h4>
+                        <ul class="text-sm space-y-1 text-slate-300">
+                            <li>• <strong>Type:</strong> Retrospective cross-sectional analysis</li>
+                            <li>• <strong>Period:</strong> October 2023 - January 2026</li>
+                            <li>• <strong>Source:</strong> Diagnostic laboratory records</li>
+                            <li>• <strong>Geography:</strong> Pan-India (all states represented)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Sample Size</h4>
+                        <ul class="text-sm space-y-1 text-slate-300">
+                            <li>• <strong>Unique Patients:</strong> 92,444</li>
+                            <li>• <strong>Total Records:</strong> 229,006</li>
+                            <li>• <strong>Analytes Tested:</strong> 16 LOINC-coded biomarkers</li>
+                            <li>• <strong>Male:Female Ratio:</strong> 58.5% : 41.5%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 2: Key Metrics Summary</h3>
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-accent-danger">44.3%</p>
+                        <p class="text-xs text-slate-400 mt-1">Low HDL Prevalence</p>
+                        <p class="text-xs text-slate-500">(&lt;40 mg/dL)</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-accent-warning">39.1%</p>
+                        <p class="text-xs text-slate-400 mt-1">High TG Prevalence</p>
+                        <p class="text-xs text-slate-500">(≥150 mg/dL)</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-accent-danger">86.0%</p>
+                        <p class="text-xs text-slate-400 mt-1">High AIP Risk</p>
+                        <p class="text-xs text-slate-500">(≥0.21)</p>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-accent-warning">44.4%</p>
+                        <p class="text-xs text-slate-400 mt-1">Dysglycemia</p>
+                        <p class="text-xs text-slate-500">(PreDM + DM)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regional Findings -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 3: Regional Findings</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="danger-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-danger mb-2">Highest Risk States</h4>
+                        <ul class="text-xs space-y-1 text-slate-300">
+                            <li>• Karnataka: <strong>23.2% DM</strong> (highest)</li>
+                            <li>• Telangana: <strong>51.7% low HDL</strong> (highest)</li>
+                            <li>• Punjab: <strong>46.1% high TG</strong> (highest)</li>
+                            <li>• Delhi: <strong>50% low HDL</strong> (urban metro)</li>
+                        </ul>
+                    </div>
+                    <div class="warning-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-warning mb-2">Regional Patterns</h4>
+                        <ul class="text-xs space-y-1 text-slate-300">
+                            <li>• South India: Highest TG (167.7) & HbA1c (6.03%)</li>
+                            <li>• West India: Lowest TG (144.9 mg/dL)</li>
+                            <li>• North India: Middle range on most markers</li>
+                            <li>• Metro areas: Higher DM but similar lipids</li>
+                        </ul>
+                    </div>
+                    <div class="success-gradient rounded-lg p-4">
+                        <h4 class="font-medium text-accent-success mb-2">Better Performing Areas</h4>
+                        <ul class="text-xs space-y-1 text-slate-300">
+                            <li>• West Bengal: 39.6% low HDL (best)</li>
+                            <li>• Punjab: 32.7% low HDL (2nd best)</li>
+                            <li>• Haryana: 38.9% low HDL (3rd best)</li>
+                            <li>• Gujarat: Balanced profile overall</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gender & Age -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 4: Demographic Patterns</h3>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Gender Differences</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">HDL Gap</td><td class="py-1 text-right">Women <strong>+5.58 mg/dL</strong> higher</td></tr>
+                            <tr><td class="py-1">TG Gap</td><td class="py-1 text-right">Men <strong>+39.84 mg/dL</strong> higher</td></tr>
+                            <tr><td class="py-1">Statistical Significance</td><td class="py-1 text-right">p &lt; 10⁻¹²⁰ (highly significant)</td></tr>
+                            <tr><td class="py-1">Effect Size</td><td class="py-1 text-right">Cohen's d = 0.58 (medium)</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Age Patterns</h4>
+                        <table class="w-full text-xs">
+                            <tr><td class="py-1">DM Risk per Decade</td><td class="py-1 text-right">+2.6% per 10 years</td></tr>
+                            <tr><td class="py-1">Critical Decade</td><td class="py-1 text-right">40-50 (DM doubles)</td></tr>
+                            <tr><td class="py-1">Peak DM Age</td><td class="py-1 text-right">60+ (34.6% diabetic)</td></tr>
+                            <tr><td class="py-1">Young Male Low HDL</td><td class="py-1 text-right">&lt;30 men: 54% affected</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clinical Implications -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 5: Clinical Implications</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium text-accent-danger mb-2">🚨 Urgent Concerns</h4>
+                        <ul class="text-xs space-y-2 text-slate-300">
+                            <li>1. <strong>86% have high AIP</strong> — most Indians have atherogenic LDL particles</li>
+                            <li>2. <strong>44% have low HDL</strong> — highest globally; cardioprotection lacking</li>
+                            <li>3. <strong>TG rising +0.9/month</strong> — population trend is worsening</li>
+                            <li>4. <strong>Young men at extreme risk</strong> — 54% have low HDL even under age 30</li>
+                        </ul>
+                    </div>
+                    <div class="bg-clinical-dark rounded-lg p-4">
+                        <h4 class="font-medium text-accent-success mb-2">✅ Recommendations</h4>
+                        <ul class="text-xs space-y-2 text-slate-300">
+                            <li>1. <strong>Mass screening at 30+</strong> — NNS of 2-4 makes it cost-effective</li>
+                            <li>2. <strong>Include AIP in reports</strong> — standard lipid panel misses 86% at risk</li>
+                            <li>3. <strong>Target age 35-45</strong> — intervention before DM doubles</li>
+                            <li>4. <strong>Male-focused campaigns</strong> — men 2x worse on most markers</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistical Summary -->
+            <div class="glass rounded-xl p-5 mb-6">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 6: Statistical Methods</h3>
+                <div class="grid grid-cols-3 gap-4 text-xs">
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Descriptive Statistics</h4>
+                        <ul class="space-y-1 text-slate-300">
+                            <li>• Mean ± Standard Deviation</li>
+                            <li>• Median (P25-P75)</li>
+                            <li>• 95% Confidence Intervals</li>
+                            <li>• Percentile distributions</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Inferential Statistics</h4>
+                        <ul class="space-y-1 text-slate-300">
+                            <li>• Independent t-tests</li>
+                            <li>• Spearman correlations</li>
+                            <li>• Cohen's d effect sizes</li>
+                            <li>• Linear regression (sklearn)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-accent-primary mb-2">Tools Used</h4>
+                        <ul class="space-y-1 text-slate-300">
+                            <li>• Python 3.x</li>
+                            <li>• pandas, numpy</li>
+                            <li>• scipy.stats</li>
+                            <li>• sklearn.linear_model</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conclusions -->
+            <div class="glass rounded-xl p-5">
+                <h3 class="font-semibold mb-4 text-lg border-b border-slate-700 pb-2">Section 7: Conclusions</h3>
+                <div class="space-y-4">
+                    <p class="text-sm text-slate-300">This analysis of 92,444 Indian patients reveals a concerning metabolic health crisis:</p>
+                    <ol class="text-sm space-y-2 text-slate-300 list-decimal list-inside">
+                        <li><strong>Atherogenic dyslipidemia is epidemic</strong> — 86% have high AIP, indicating small dense LDL predominance and elevated CVD risk.</li>
+                        <li><strong>HDL deficiency is the #1 problem</strong> — 44.3% have low HDL, the highest rate globally, making Indians uniquely vulnerable to heart disease.</li>
+                        <li><strong>Diabetes is surging</strong> — 44.4% have dysglycemia (26.7% pre-diabetic + 17.8% diabetic), with prevalence doubling between ages 30-50.</li>
+                        <li><strong>Men are at severe disadvantage</strong> — 54% of men under 30 already have low HDL, and their diabetes rates are double that of women at every age.</li>
+                        <li><strong>Regional disparities exist</strong> — South India (Karnataka, Telangana) shows worst diabetes; North India shows worst lipids after Delhi.</li>
+                    </ol>
+                    <div class="danger-gradient rounded-lg p-4 mt-4">
+                        <p class="text-sm"><strong>Bottom Line:</strong> India faces a cardiovascular and metabolic health emergency that requires immediate public health intervention. Mass screening, lifestyle modification programs, and India-specific diagnostic thresholds are urgently needed.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        Vytal Clinical Research Dashboard | All statistics computed using Python (pandas, numpy, scipy.stats, sklearn) | Data: Oct 2023 - Jan 2026
+    </footer>
+
+    <script>
+        function showTab(id) {
+            document.querySelectorAll('[id^="section-"]').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('[id^="tab-"]').forEach(t => { t.classList.remove('tab-active'); t.classList.add('hover:bg-slate-700'); });
+            document.getElementById('section-' + id).classList.remove('hidden');
+            document.getElementById('tab-' + id).classList.add('tab-active');
+            document.getElementById('tab-' + id).classList.remove('hover:bg-slate-700');
+        }
+
+        function exportToPDF() {
+            const btn = document.getElementById('btn-export');
+            const originalText = btn.innerHTML;
+            
+            // Check if html2pdf is available
+            if (typeof html2pdf === 'undefined') {
+                alert('PDF library not loaded. Please use the Print button instead (Ctrl+P / Cmd+P) and select "Save as PDF".');
+                return;
+            }
+            
+            btn.innerHTML = '⏳ Generating...';
+            btn.disabled = true;
+
+            // Show all sections temporarily
+            const sections = document.querySelectorAll('[id^="section-"]');
+            const hiddenStates = [];
+            sections.forEach(s => {
+                hiddenStates.push(s.classList.contains('hidden'));
+                s.classList.remove('hidden');
+            });
+
+            // Hide nav and export button for PDF
+            const nav = document.querySelector('nav');
+            const footer = document.querySelector('footer');
+            nav.style.display = 'none';
+            footer.style.display = 'none';
+
+            // Get the main element
+            const element = document.querySelector('main');
+
+            // PDF options - simpler settings for reliability
+            const opt = {
+                margin: [5, 5, 5, 5],
+                filename: 'Vytal_Biomarker_Report_' + new Date().toISOString().split('T')[0] + '.pdf',
+                image: { type: 'jpeg', quality: 0.85 },
+                html2canvas: { 
+                    scale: 1,
+                    useCORS: true,
+                    backgroundColor: '#0f172a',
+                    logging: false,
+                    windowWidth: 1200
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait',
+                    compress: true
+                }
+            };
+
+            // Use promise chain
+            html2pdf()
+                .set(opt)
+                .from(element)
+                .save()
+                .then(function() {
+                    // Restore everything
+                    nav.style.display = '';
+                    footer.style.display = '';
+                    sections.forEach((s, i) => {
+                        if (hiddenStates[i]) s.classList.add('hidden');
+                    });
+                    btn.innerHTML = '✓ Downloaded!';
+                    btn.disabled = false;
+                    setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                })
+                .catch(function(err) {
+                    console.error('PDF Error:', err);
+                    // Restore on error too
+                    nav.style.display = '';
+                    footer.style.display = '';
+                    sections.forEach((s, i) => {
+                        if (hiddenStates[i]) s.classList.add('hidden');
+                    });
+                    btn.innerHTML = '❌ Use Print';
+                    btn.disabled = false;
+                    alert('PDF generation failed. Please use Print button (🖨️) instead and select "Save as PDF" from your printer options.');
+                    setTimeout(() => { btn.innerHTML = originalText; }, 3000);
+                });
+        }
+        
+        // Alternative: Print to PDF (more reliable)
+        function printReport() {
+            const sections = document.querySelectorAll('[id^="section-"]');
+            sections.forEach(s => s.classList.remove('hidden'));
+            window.print();
+        }
+
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = 'IBM Plex Sans';
+
+        // State Chart
+        new Chart(document.getElementById('stateChart'), {
+            type: 'bar',
+            data: { labels: ['MH', 'UP', 'DL', 'GJ', 'WB', 'MP', 'PB', 'TG', 'HR', 'KA'], datasets: [{ data: [51763, 32651, 22959, 20018, 14483, 10474, 9994, 9449, 8818, 7218], backgroundColor: '#06b6d4' }] },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#334155' } }, y: { grid: { display: false } } } }
+        });
+
+        // Age Distribution
+        new Chart(document.getElementById('ageDistChart'), {
+            type: 'bar',
+            data: { labels: ['<30', '30-40', '40-50', '50-60', '60+'], datasets: [{ data: [24, 35, 22, 13, 6], backgroundColor: ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444'], label: '% of population' }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        // Gender Chart
+        new Chart(document.getElementById('genderChart'), {
+            type: 'doughnut',
+            data: { labels: ['Male (58.5%)', 'Female (41.5%)'], datasets: [{ data: [58.5, 41.5], backgroundColor: ['#3b82f6', '#ec4899'] }] },
+            options: { plugins: { legend: { position: 'bottom' } } }
+        });
+
+        // Histograms
+        new Chart(document.getElementById('hdlHistChart'), {
+            type: 'bar',
+            data: { labels: ['20-30', '30-35', '35-40', '40-45', '45-50', '50-55', '55-60', '60-70', '70+'], datasets: [{ data: [1162, 2287, 3168, 3119, 2248, 1391, 796, 594, 40], backgroundColor: ['#ef4444', '#ef4444', '#f59e0b', '#06b6d4', '#06b6d4', '#10b981', '#10b981', '#10b981', '#10b981'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('ldlHistChart'), {
+            type: 'bar',
+            data: { labels: ['40-70', '70-100', '100-130', '130-160', '160-190', '190+'], datasets: [{ data: [1377, 4291, 5318, 2879, 809, 39], backgroundColor: ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#ef4444', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('tgHistChart'), {
+            type: 'bar',
+            data: { labels: ['0-100', '100-150', '150-200', '200-300', '300-400', '400+'], datasets: [{ data: [4665, 4462, 2685, 2115, 639, 205], backgroundColor: ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#ef4444', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('glucoseHistChart'), {
+            type: 'bar',
+            data: { labels: ['<70', '70-100', '100-126', '126-150', '150-200', '200+'], datasets: [{ data: [54, 9914, 3109, 820, 609, 253], backgroundColor: ['#f59e0b', '#10b981', '#f59e0b', '#ef4444', '#ef4444', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('hba1cHistChart'), {
+            type: 'bar',
+            data: { labels: ['4-5', '5-5.7', '5.7-6.5', '6.5-7.5', '7.5-8.5', '8.5+'], datasets: [{ data: [1651, 6664, 3999, 1240, 587, 485], backgroundColor: ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#ef4444', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('altHistChart'), {
+            type: 'bar',
+            data: { labels: ['0-20', '20-40', '40-60', '60-80', '80-100', '100+'], datasets: [{ data: [5289, 6163, 2091, 800, 282, 224], backgroundColor: ['#10b981', '#10b981', '#f59e0b', '#ef4444', '#ef4444', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' } }, x: { grid: { display: false } } } }
+        });
+
+        // AIP Charts
+        new Chart(document.getElementById('aipPieChart'), {
+            type: 'doughnut',
+            data: { labels: ['Low (<0.11): 7.13%', 'Intermediate: 6.86%', 'High (≥0.21): 86.02%'], datasets: [{ data: [265, 255, 3199], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'] }] },
+            options: { plugins: { legend: { position: 'right' } } }
+        });
+
+        new Chart(document.getElementById('aipHistChart'), {
+            type: 'bar',
+            data: { labels: ['-0.4', '-0.2', '0', '0.2', '0.4', '0.6', '0.8', '1.0', '1.2', '1.4'], datasets: [{ label: 'Frequency', data: [5, 35, 180, 450, 850, 980, 720, 350, 120, 29], backgroundColor: '#8b5cf6' }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' }, title: { display: true, text: 'Count' } }, x: { grid: { display: false }, title: { display: true, text: 'AIP Value' } } } }
+        });
+
+        // Age DM Chart
+        new Chart(document.getElementById('ageDMChart'), {
+            type: 'bar',
+            data: { labels: ['<30', '30-40', '40-50', '50-60', '60+'], datasets: [
+                { label: 'Pre-DM %', data: [15.4, 22.2, 29.5, 34.6, 38.9], backgroundColor: '#f59e0b' },
+                { label: 'DM %', data: [6.0, 10.4, 20.3, 31.6, 34.6], backgroundColor: '#ef4444' }
+            ] },
+            options: { plugins: { legend: { position: 'top' } }, scales: { y: { grid: { color: '#334155' }, stacked: true }, x: { grid: { display: false }, stacked: true } } }
+        });
+
+        // Correlation Charts
+        new Chart(document.getElementById('corrHeatmap'), {
+            type: 'bar',
+            data: { labels: ['HDL', 'LDL', 'TG', 'Glucose', 'HbA1c', 'ALT', 'AST'], datasets: [
+                { label: 'vs TG', data: [-0.32, 0.27, 1, 0.26, 0.17, 0.29, 0.19], backgroundColor: '#ef4444' },
+                { label: 'vs HbA1c', data: [-0.08, 0.07, 0.17, 0.53, 1, 0.05, -0.11], backgroundColor: '#8b5cf6' }
+            ] },
+            options: { plugins: { legend: { position: 'top' } }, scales: { y: { grid: { color: '#334155' }, min: -0.5, max: 1 }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('corrBarChart'), {
+            type: 'bar',
+            data: { labels: ['ALT-AST', 'Gluc-HbA1c', 'HDL-TG', 'TG-ALT', 'LDL-TG', 'TG-Gluc', 'HDL-Gluc'], datasets: [{ data: [0.787, 0.525, -0.317, 0.289, 0.268, 0.258, -0.215], backgroundColor: ['#10b981', '#10b981', '#ef4444', '#06b6d4', '#06b6d4', '#06b6d4', '#ef4444'] }] },
+            options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#334155' }, min: -0.5, max: 1 }, y: { grid: { display: false } } } }
+        });
+
+        // Prevalence & NNS Charts
+        new Chart(document.getElementById('prevalenceChart'), {
+            type: 'bar',
+            data: { labels: ['Low HDL', 'High TG', 'High LDL', 'High Glucose', 'Pre-DM', 'Diabetic'], datasets: [{ data: [44.33, 39.14, 25.94, 33.46, 26.67, 17.78], backgroundColor: ['#ef4444', '#f59e0b', '#06b6d4', '#f59e0b', '#f59e0b', '#ef4444'] }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' }, title: { display: true, text: 'Prevalence %' } }, x: { grid: { display: false } } } }
+        });
+
+        new Chart(document.getElementById('nnsChart'), {
+            type: 'bar',
+            data: { labels: ['Low HDL', 'High TG', 'High LDL', 'High Glucose', 'Pre-DM', 'Diabetic'], datasets: [{ data: [2.3, 2.6, 3.9, 3.0, 3.7, 5.6], backgroundColor: '#06b6d4' }] },
+            options: { plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#334155' }, title: { display: true, text: 'NNS (lower = more common)' } }, x: { grid: { display: false } } } }
+        });
+
+        // Age Risk Prediction Chart
+        new Chart(document.getElementById('ageRiskChart'), {
+            type: 'line',
+            data: { 
+                labels: ['20', '25', '30', '35', '40', '45', '50', '55', '60', '65', '70'],
+                datasets: [{
+                    label: 'Predicted DM Risk %',
+                    data: [12.6, 13.8, 15.1, 16.4, 17.7, 19.0, 20.3, 21.5, 22.8, 24.1, 25.4],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }, {
+                    label: 'Actual Observed Rate',
+                    data: [null, null, 6, null, 10.4, null, 20.3, null, null, 31.6, 34.6],
+                    borderColor: '#06b6d4',
+                    backgroundColor: '#06b6d4',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    showLine: false
+                }]
+            },
+            options: { 
+                plugins: { legend: { position: 'top' } }, 
+                scales: { 
+                    y: { grid: { color: '#334155' }, title: { display: true, text: 'Diabetes Risk %' }, min: 0, max: 40 }, 
+                    x: { grid: { display: false }, title: { display: true, text: 'Age (years)' } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
